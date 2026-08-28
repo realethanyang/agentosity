@@ -54,6 +54,12 @@ struct Company: Codable {
     let name: String
 }
 
+struct Profile: Codable {
+    let company: Company?
+    let can_change: Bool?
+    let next_change_at: String?
+}
+
 struct CheckinResult: Codable {
     let ok: Bool?
     let clocked_local: String?
@@ -176,7 +182,9 @@ final class Store: ObservableObject {
         config = loadRawConfig()
     }
 
-    var company: String? { config["company"] as? String }
+    @Published var profileCompany: String?
+    /** 展示与归属用:服务端绑定优先,本地配置兜底(CLI/雷达共用的缓存) */
+    var company: String? { profileCompany ?? (config["company"] as? String) }
     var deviceId: String? { config["deviceId"] as? String }
     var email: String? { config["email"] as? String }
     var accessToken: String? { config["accessToken"] as? String }
@@ -249,6 +257,15 @@ final class Store: ObservableObject {
             pulse = p
         }
         if accessToken != nil || deviceId != nil {
+            if let d = try? await request("/api/profile\(identityQuery)"),
+               let p = try? JSONDecoder().decode(Profile.self, from: d) {
+                profileCompany = p.company?.name
+                // 写回本地缓存,CLI 的 MCP 考勤和进程雷达共用这个归属
+                if let name = p.company?.name, (config["company"] as? String) != name {
+                    patchConfig(["company": name])
+                    config = loadRawConfig()
+                }
+            }
             if let d = try? await request("/api/my-agents\(identityQuery)"),
                let mine = try? JSONDecoder().decode(MyAgents.self, from: d) {
                 myAgents = mine
@@ -260,33 +277,12 @@ final class Store: ObservableObject {
         }
     }
 
-    func setCompany(_ name: String) async {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        _ = try? await request("/api/companies", method: "POST", json: ["name": trimmed])
-        patchConfig(["company": trimmed])
-        config = loadRawConfig()
-        await refresh()
-    }
-
     func clockOut() async {
-        guard let company else {
-            errorText = "先设置你的公司"
-            return
-        }
         do {
-            var comps = URLComponents(string: "\(apiBase)/api/companies")!
-            comps.queryItems = [URLQueryItem(name: "q", value: company)]
-            let (listData, _) = try await URLSession.shared.data(from: comps.url!)
-            let list = try JSONDecoder().decode([Company].self, from: listData)
-            guard let match = list.first(where: { $0.name == company }) ?? list.first else {
-                errorText = "找不到公司「\(company)」"
-                return
-            }
-            patchConfig([:])
+            patchConfig([:]) // 确保 deviceId
             config = loadRawConfig()
             let data = try await request("/api/checkin", method: "POST", json: [
-                "companyId": match.id, "deviceId": deviceId ?? "",
+                "deviceId": deviceId ?? "",
             ])
             let result = try JSONDecoder().decode(CheckinResult.self, from: data)
             if result.ok == true {
@@ -404,10 +400,7 @@ struct Card<Content: View>: View {
 struct PopoverView: View {
     @ObservedObject var store: Store
     @Environment(\.openURL) private var openURL
-    @State private var companyDraft = ""
-    @State private var editingCompany = false
     @State private var copied = false
-    @State private var busy = false
     @State private var showInstall = false
 
     var body: some View {
@@ -534,22 +527,6 @@ struct PopoverView: View {
 
     private var checkinSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 公司行
-            if store.company == nil || editingCompany {
-                HStack(spacing: 6) {
-                    TextField("你的公司名", text: $companyDraft)
-                        .textFieldStyle(.roundedBorder).font(.system(size: 12))
-                        .onSubmit { saveCompany() }
-                    Button("保存") { saveCompany() }
-                        .disabled(busy || companyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
-                        .font(.system(size: 12, weight: .bold))
-                    if store.company != nil {
-                        Button("取消") { editingCompany = false }
-                            .font(.system(size: 12)).foregroundStyle(.secondary)
-                    }
-                }
-            }
-
             if let today = store.myToday, today.checked_in {
                 HStack {
                     Text("✅ 今天 \(today.clocked_local ?? "") 已打卡")
@@ -561,39 +538,36 @@ struct PopoverView: View {
                 .padding(.vertical, 2)
             } else {
                 Button {
-                    Task { await store.clockOut() }
+                    if store.company == nil {
+                        openCheckinPage() // 没绑公司 → 去网页绑定
+                    } else {
+                        Task { await store.clockOut() }
+                    }
                 } label: {
-                    Text(store.company == nil ? "设置公司后打卡" : "我下班了 🎉")
+                    Text(store.company == nil ? "去网页选择公司 →" : "我下班了 🎉")
                         .font(.system(size: 15, weight: .black))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 9)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Brand.pink)
-                .disabled(store.company == nil)
             }
 
-            if let c = store.company, !editingCompany {
-                HStack(spacing: 4) {
+            // 公司仅展示;改绑去网页(每周一次的限频在服务端)
+            HStack(spacing: 4) {
+                if let c = store.company {
                     Text("🏢 \(c)").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
-                    Button("改") {
-                        companyDraft = c
-                        editingCompany = true
-                    }
-                    .font(.system(size: 9)).buttonStyle(.plain).foregroundStyle(.secondary)
-                    Spacer()
+                    Button("改绑 ↗") { openCheckinPage() }
+                        .font(.system(size: 9)).buttonStyle(.plain).foregroundStyle(.secondary)
+                        .help("在网页上改绑公司(每周最多一次)")
                 }
+                Spacer()
             }
         }
     }
 
-    private func saveCompany() {
-        busy = true
-        Task {
-            await store.setCompany(companyDraft)
-            editingCompany = false
-            busy = false
-        }
+    private func openCheckinPage() {
+        if let url = URL(string: "\(store.apiBase)/checkin") { openURL(url) }
     }
 
     private var installSection: some View {

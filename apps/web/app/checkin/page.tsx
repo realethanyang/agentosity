@@ -2,13 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { deviceId, savedCompany, saveCompany, SavedCompany } from "@/lib/device";
+import { deviceId } from "@/lib/device";
 import { freshAuthHeaders } from "@/lib/auth-client";
 
 type Company = { id: string; name: string };
+type Profile = {
+  company: Company | null;
+  can_change: boolean;
+  next_change_at: string | null;
+};
 
 export default function CheckinPage() {
-  const [company, setCompany] = useState<SavedCompany | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [picking, setPicking] = useState(false);
+  const company = profile?.company ?? null;
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Company[]>([]);
   const [searching, setSearching] = useState(false);
@@ -30,8 +37,14 @@ export default function CheckinPage() {
   const loadPulse = () =>
     fetch("/api/pulse").then((r) => r.json()).then(setPulse).catch(() => {});
 
+  const loadProfile = async () => {
+    const headers = await freshAuthHeaders();
+    const r = await fetch(`/api/profile?device=${deviceId()}`, { headers });
+    setProfile(await r.json());
+  };
+
   useEffect(() => {
-    setCompany(savedCompany());
+    loadProfile();
     freshAuthHeaders().then((headers) =>
       fetch(`/api/my-today?device=${deviceId()}`, { headers })
         .then((r) => r.json())
@@ -66,11 +79,24 @@ export default function CheckinPage() {
     else setError(d.error ?? "创建失败");
   }
 
-  function pick(c: Company) {
-    saveCompany(c);
-    setCompany(c);
-    setQ("");
-    setResults([]);
+  /** 绑定/改绑公司(服务端唯一真相,改绑每周一次) */
+  async function pick(c: Company) {
+    setError(null);
+    const headers = await freshAuthHeaders();
+    const r = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify({ companyId: c.id, deviceId: deviceId() }),
+    });
+    const d = await r.json();
+    if (r.ok) {
+      setQ("");
+      setResults([]);
+      setPicking(false);
+      await loadProfile();
+    } else {
+      setError(d.error ?? "绑定失败");
+    }
   }
 
   async function punch(backfill?: { date: string; time: string }) {
@@ -80,7 +106,7 @@ export default function CheckinPage() {
     const r = await fetch("/api/checkin", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(await freshAuthHeaders()) },
-      body: JSON.stringify({ companyId: company.id, deviceId: deviceId(), backfill }),
+      body: JSON.stringify({ deviceId: deviceId(), backfill }),
     });
     const d = await r.json();
     setBusy(false);
@@ -143,21 +169,34 @@ export default function CheckinPage() {
         </div>
       )}
 
-      {/* 选公司 */}
+      {/* 选公司(绑定制:服务端唯一真相,改绑每周一次) */}
       <section className="mt-6">
-        {company ? (
+        {company && !picking ? (
           <div className="nb-card flex items-center justify-between bg-white p-4">
             <div>
               <div className="text-xs font-bold opacity-60">我的公司</div>
               <div className="text-xl font-black">{company.name}</div>
             </div>
-            <button onClick={() => setCompany(null)} className="nb-btn bg-white px-3 py-1 text-sm font-bold">
-              换一家
-            </button>
+            {profile?.can_change ? (
+              <button onClick={() => setPicking(true)} className="nb-btn bg-white px-3 py-1 text-sm font-bold">
+                换一家
+              </button>
+            ) : (
+              <span className="text-xs font-bold opacity-50">
+                每周可改一次
+                <br />
+                下次:{profile?.next_change_at}
+              </span>
+            )}
           </div>
         ) : (
           <div className="nb-card bg-white p-4">
             <label className="text-sm font-extrabold">你在哪家公司上班?</label>
+            {picking && (
+              <button onClick={() => setPicking(false)} className="ml-3 text-xs font-bold underline opacity-60">
+                取消
+              </button>
+            )}
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}

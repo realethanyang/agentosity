@@ -11,10 +11,28 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const { companyId, deviceId, backfill } = body ?? {};
+  const { companyId: bodyCompanyId, deviceId, backfill } = body ?? {};
   const userToken = (await userTokenFromRequest(req)) ?? deviceId;
-  if (!companyId || !userToken) {
-    return NextResponse.json({ error: "缺少 companyId / deviceId" }, { status: 400 });
+  if (!userToken) {
+    return NextResponse.json({ error: "缺少 deviceId" }, { status: 400 });
+  }
+
+  // 公司以服务端绑定(profile)为唯一真相;无绑定时用请求里的 companyId 完成首绑
+  const { data: prof } = await db()
+    .from("profiles")
+    .select("company_id")
+    .eq("user_token", userToken)
+    .maybeSingle();
+  const companyId = prof?.company_id ?? bodyCompanyId;
+  if (!companyId) {
+    return NextResponse.json({ error: "先选择你的公司" }, { status: 400 });
+  }
+  if (!prof?.company_id) {
+    await db().from("profiles").upsert({
+      user_token: userToken,
+      company_id: companyId,
+      company_changed_at: new Date().toISOString(),
+    });
   }
 
   let clockedAt: Date;
