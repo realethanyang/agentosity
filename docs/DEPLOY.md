@@ -55,6 +55,16 @@ Supabase 自带 SMTP 免费档限流极狠(每小时个位数),正式启用登�
 1. resend.com 注册,拿 API key,验证 agentosity.com 发件域名(加 DNS 记录)
 2. Supabase Dashboard → Auth → SMTP Settings 填 Resend SMTP
 
+## 登录门禁(统一登录)
+
+- 正式站 Vercel 项目 `agentosity` 设了 `REQUIRE_LOGIN=1` + `NEXT_PUBLIC_REQUIRE_LOGIN=1`(打卡/绑公司匿名 401);
+- demo 项目**不设**这两个变量 → 现场扫码零门槛。
+
+## mac App 分发
+
+- GitHub Release:`gh release upload v0.2.0 apps/menubar/dist/Agentosity.app.zip --clobber`(先 `apps/menubar/build-app.sh` + `ditto -c -k --keepParent`);
+- 已用 Developer ID(Ethan Yang, UTR5A48B54)签名 + 硬化运行时;**公证待办**:拿到 Apple ID App 专用密码后 `xcrun notarytool submit ... --apple-id ... --team-id UTR5A48B54 --password <app专用密码> --wait` + `xcrun stapler staple`。
+
 ## Demo 前 checklist
 
 - 跑一次 live 数据刷新:

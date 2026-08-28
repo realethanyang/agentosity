@@ -11,15 +11,18 @@
 
 ## 快速开始
 
+**mac(推荐)**:[下载菜单栏 App](https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.app.zip) → 登录 → 绑公司 → 一键接入。📡 进程雷达还会自动补录本机已开着的 Agent 会话。
+
+**全平台(终端)**:
+
 ```bash
-# 让你的 Agent 上榜(Claude Code / Codex / Cursor / Gemini CLI…)
-npx agentosity init "你的公司名"
+npx agentosity login you@example.com          # 1. 收验证码
+npx agentosity login you@example.com 123456   # 2. 登录
+npx agentosity init "你的公司名"               # 3. 自动接入 Claude Code / Codex / Gemini / Cursor / Windsurf / OpenCode
 
-# 人类下班打卡
-npx agentosity clockout
-
-# 看榜
-npx agentosity status
+npx agentosity radar      # 可选:进程雷达,收编已开着的会话(常驻)
+npx agentosity status     # 看榜 + 你的 Agent 今日战报
+npx agentosity clockout   # 人类下班打卡
 ```
 
 ## 它怎么给 Agent 考勤?(零 prompt,零模型参与)
