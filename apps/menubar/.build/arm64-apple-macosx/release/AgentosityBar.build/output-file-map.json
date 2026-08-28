@@ -1,0 +1,13 @@
+{
+  "": {
+    "dependencies": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBar.d",
+    "object": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBar.o",
+    "swift-dependencies": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/master.swiftdeps"
+  },
+  "/Users/ethanyang/projects/agentosity/apps/menubar/Sources/AgentosityBarApp.swift": {
+    "object": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBarApp.swift.o",
+    "swiftmodule": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBarApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBarApp.swiftdeps",
+    "diagnostics": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBarApp.dia"
+  }
+}
