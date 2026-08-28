@@ -19,7 +19,11 @@ export default function CheckinPage() {
   const [bfTime, setBfTime] = useState("19:00");
   const [error, setError] = useState<string | null>(null);
   const [today, setToday] = useState<{ checked_in: boolean; clocked_local?: string; company?: string } | null>(null);
+  const [pulse, setPulse] = useState<{ checked_out: number; still_working: number; companies_all_out: number } | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const loadPulse = () =>
+    fetch("/api/pulse").then((r) => r.json()).then(setPulse).catch(() => {});
 
   useEffect(() => {
     setCompany(savedCompany());
@@ -27,6 +31,7 @@ export default function CheckinPage() {
       .then((r) => r.json())
       .then(setToday)
       .catch(() => {});
+    loadPulse();
   }, []);
 
   useEffect(() => {
@@ -72,8 +77,10 @@ export default function CheckinPage() {
     });
     const d = await r.json();
     setBusy(false);
-    if (d.ok) setDone({ time: d.clocked_local, note: d.note });
-    else setError(d.error ?? "打卡失败,再试一次");
+    if (d.ok) {
+      setDone({ time: d.clocked_local, note: d.note });
+      loadPulse();
+    } else setError(d.error ?? "打卡失败,再试一次");
   }
 
   if (done) {
@@ -86,6 +93,12 @@ export default function CheckinPage() {
             {company?.name} · {done.time}
           </p>
           {done.note && <p className="mt-2 text-sm font-bold opacity-70">{done.note}</p>}
+          {pulse && (
+            <p className="mt-3 text-sm font-bold">
+              🏃 你是今天第 {pulse.checked_out} 个下班的人
+              {pulse.still_working > 0 && `,还有 ${pulse.still_working} 人在岗`}
+            </p>
+          )}
           <p className="mt-4 text-sm font-bold opacity-70">
             明早 10:00 揭榜,来看你公司排第几 →{" "}
             <Link href="/me" className="underline">我的排名</Link>
@@ -101,6 +114,13 @@ export default function CheckinPage() {
   return (
     <main className="mx-auto max-w-xl px-4 py-10">
       <h1 className="text-3xl font-black">下班打卡</h1>
+      {pulse && (
+        <p className="mt-2 text-sm font-bold opacity-70">
+          🏃 今天已有 {pulse.checked_out} 人下班
+          {pulse.still_working > 0 && ` · ${pulse.still_working} 人还在岗`}
+          {pulse.companies_all_out > 0 && ` · ${pulse.companies_all_out} 家公司全员撤离`}
+        </p>
+      )}
       {today?.checked_in && (
         <div className="nb-card mt-4 bg-[var(--nb-green)] p-3 text-sm font-bold">
           ✅ 今天已打卡 {today.clocked_local}

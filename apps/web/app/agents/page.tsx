@@ -14,7 +14,9 @@ type AgentRow = {
 };
 type Live = {
   total: number;
-  by_company: { name: string; harness: string; since_minutes: number }[];
+  working: number;
+  idle: number;
+  by_company: { name: string; harness: string; working: boolean; since_minutes: number }[];
 };
 
 const INSTALL_CMD = 'npx agentosity init "你的公司名"';
@@ -50,17 +52,25 @@ export default function AgentsPage() {
       {/* 在岗实况 */}
       <section className="nb-card mt-6 bg-[var(--nb-ink)] p-5 text-white">
         <div className="text-2xl font-black">
-          🤖 此刻 {live?.total ?? "…"} 个 Agent 正在上班
+          🤖 此刻 {live?.total ?? "…"} 个 Agent 在上班
+          {live != null && live.total > 0 && (
+            <span className="ml-2 text-base font-bold opacity-80">
+              ⚡ {live.working} 个在干活 · 😴 {live.idle} 个挂机中
+            </span>
+          )}
         </div>
         {live && live.by_company.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
             {live.by_company.map((a, i) => (
               <span key={i} className="border-2 border-white px-2 py-1">
-                {a.name} · {a.harness} · 已上班 {a.since_minutes} 分钟
+                {a.working ? "⚡" : "😴"} {a.name} · {a.harness} · 已上班 {a.since_minutes} 分钟
               </span>
             ))}
           </div>
         )}
+        <p className="mt-3 text-xs font-bold opacity-60">
+          ⚡ 在干活 = 探针检测到最近 3 分钟有真实活动;😴 挂机 = 会话开着但没动静
+        </p>
       </section>
 
       {/* Agent 榜 */}
@@ -115,9 +125,7 @@ export default function AgentsPage() {
       {/* 接入指南 */}
       <section className="nb-card mt-6 bg-[var(--nb-yellow)] p-5">
         <h2 className="text-2xl font-black">让你的 Agent 也上榜</h2>
-        <p className="mt-1 text-sm font-bold">
-          一条命令,自动考勤。Claude Code / Codex / Cursor / Gemini CLI 全支持,不用改任何 prompt:
-        </p>
+        <p className="mt-1 text-sm font-bold">一条命令,自动考勤,不用改任何 prompt:</p>
         <button
           onClick={() => {
             navigator.clipboard.writeText(INSTALL_CMD).then(() => {
@@ -133,6 +141,18 @@ export default function AgentsPage() {
             <span className="shrink-0 text-xs opacity-70">{copied ? "✅ 已复制" : "📋 点击复制"}</span>
           </span>
         </button>
+        <div className="mt-3 text-xs font-bold">
+          <span className="opacity-70">支持的 Agent Harness:</span>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {["Claude Code", "Codex CLI", "Gemini CLI", "Cursor", "Cline", "Windsurf"].map((h) => (
+              <span key={h} className="border-2 border-black bg-white px-2 py-0.5">{h}</span>
+            ))}
+            <span className="px-1 py-0.5 opacity-60">…任何支持 stdio MCP 的 harness</span>
+          </div>
+          <p className="mt-1 opacity-70">
+            活跃度探针(区分干活/挂机)目前精确支持 Claude Code 和 Codex,其余按在岗时长计。
+          </p>
+        </div>
         <p className="mt-2 text-xs font-bold opacity-70">
           原理:注册一个极薄的本地 MCP 考勤进程,会话开始/结束自动打卡,
           只上报时长,绝不读取你的代码和对话内容。

@@ -17,6 +17,7 @@ export function serve({ company, deviceId }) {
   let probe = null;
   let probeLabel = "none";
   let activeSeconds = 0;
+  let activeNow = true; // 会话刚拉起视为在干活,之后由探针接管
   let lastTick = Date.now();
   let ended = false;
 
@@ -35,6 +36,7 @@ export function serve({ company, deviceId }) {
       try {
         const s = probe.sample();
         probeLabel = s.probe;
+        activeNow = s.active;
         if (s.active) {
           activeSeconds = Math.min(
             activeSeconds + Math.round((now - lastTick) / 1000),
@@ -54,6 +56,7 @@ export function serve({ company, deviceId }) {
         session_id: sessionId,
         active_seconds: activeSeconds,
         probe: probeLabel,
+        active: activeNow,
       });
     }
   }, HEARTBEAT_MS);

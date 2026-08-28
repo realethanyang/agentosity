@@ -6,11 +6,14 @@ import AppKit
 struct AgentsResponse: Codable {
     struct Live: Codable {
         let total: Int
+        let working: Int?
+        let idle: Int?
         let by_company: [LiveAgent]
     }
     struct LiveAgent: Codable {
         let name: String
         let harness: String
+        let working: Bool?
         let since_minutes: Double
     }
     struct Row: Codable {
@@ -23,6 +26,13 @@ struct AgentsResponse: Codable {
     }
     let board: [Row]
     let live: Live
+}
+
+struct Pulse: Codable {
+    let checked_out: Int
+    let still_working: Int
+    let companies_all_out: Int
+    let companies_total: Int
 }
 
 struct MyAgents: Codable {
@@ -60,6 +70,15 @@ struct DevicePoll: Codable {
     let email: String?
 }
 
+// MARK: - 品牌色
+
+enum Brand {
+    static let ink = Color(red: 0.07, green: 0.07, blue: 0.07)
+    static let yellow = Color(red: 1.0, green: 0.85, blue: 0.24)
+    static let pink = Color(red: 1.0, green: 0.42, blue: 0.62)
+    static let green = Color(red: 0.42, green: 0.80, blue: 0.47)
+}
+
 // MARK: - 配置(与 CLI 共用 ~/.agentosity/config.json)
 
 func configURL() -> URL {
@@ -92,8 +111,9 @@ func patchConfig(_ patch: [String: Any?]) {
 
 @MainActor
 final class Store: ObservableObject {
-    @Published var liveTotal: Int?
+    @Published var live: AgentsResponse.Live?
     @Published var myCompanyRow: AgentsResponse.Row?
+    @Published var pulse: Pulse?
     @Published var myAgents: MyAgents?
     @Published var myToday: MyToday?
     @Published var errorText: String?
@@ -135,13 +155,17 @@ final class Store: ObservableObject {
         do {
             let data = try await request("/api/agents")
             let resp = try JSONDecoder().decode(AgentsResponse.self, from: data)
-            liveTotal = resp.live.total
+            live = resp.live
             if let mine = company {
                 myCompanyRow = resp.board.first { $0.name == mine }
             }
             errorText = nil
         } catch {
             errorText = "拿不到数据(网络?)"
+        }
+        if let d = try? await request("/api/pulse"),
+           let p = try? JSONDecoder().decode(Pulse.self, from: d) {
+            pulse = p
         }
         if accessToken != nil || deviceId != nil {
             if let d = try? await request("/api/my-agents\(identityQuery)"),
@@ -178,7 +202,7 @@ final class Store: ObservableObject {
                 errorText = "找不到公司「\(company)」"
                 return
             }
-            patchConfig([:]) // 确保 deviceId
+            patchConfig([:])
             config = loadRawConfig()
             let data = try await request("/api/checkin", method: "POST", json: [
                 "companyId": match.id, "deviceId": deviceId ?? "",
@@ -209,9 +233,9 @@ final class Store: ObservableObject {
         }
         loginWaiting = true
         errorText = nil
-        for _ in 0 ..< 150 { // 最长等 5 分钟
+        for _ in 0 ..< 150 {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
-            guard loginWaiting else { return } // 用户取消
+            guard loginWaiting else { return }
             guard let pd = try? await request("/api/device/poll?code=\(code)"),
                   let poll = try? JSONDecoder().decode(DevicePoll.self, from: pd)
             else { continue }
@@ -249,13 +273,41 @@ struct AgentosityBarApp: App {
         MenuBarExtra {
             PopoverView(store: store)
         } label: {
-            if let n = store.liveTotal, n > 0 {
-                Text("🤖\(n)")
+            if let l = store.live, l.total > 0 {
+                Text("🤖\(l.total)")
             } else {
                 Text("🤖")
             }
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+// MARK: - 复用小组件
+
+struct Card<Content: View>: View {
+    var bg: Color = Color(nsColor: .textBackgroundColor)
+    var stroke: Color = .black.opacity(0.85)
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(bg)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(stroke, lineWidth: 2)
+            )
+            .background(
+                // 硬阴影:Neo Brutalism 的小致敬
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.black.opacity(0.9))
+                    .offset(x: 3, y: 3)
+            )
     }
 }
 
@@ -268,118 +320,213 @@ struct PopoverView: View {
     @State private var editingCompany = false
     @State private var copied = false
     @State private var busy = false
+    @State private var showInstall = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Agentosity").font(.system(size: 18, weight: .black))
+            header
+            agentHeroCard
+            if let p = store.pulse, p.checked_out > 0 || p.still_working > 0 {
+                pulseCard(p)
+            }
+            if let my = store.myAgents, my.sessions > 0 {
+                myAgentsCard(my)
+            }
+            checkinSection
+            installSection
+            if let err = store.errorText {
+                Text(err).font(.system(size: 10, weight: .bold)).foregroundStyle(.red)
+            }
+            footer
+        }
+        .padding(14)
+        .frame(width: 320)
+        .task { await store.refresh() }
+        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
+            Task { await store.refresh() }
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("下班榜").font(.system(size: 17, weight: .black))
+                Text("Agentosity").font(.system(size: 12, weight: .heavy)).foregroundStyle(.secondary)
                 Spacer()
-                Text("AI-native is a number now.")
-                    .font(.system(size: 9, weight: .bold))
+                if let mail = store.email {
+                    Menu {
+                        Text(mail)
+                        Button("退出登录") { store.logout() }
+                    } label: {
+                        Text("✓ 已登录").font(.system(size: 10, weight: .bold))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                } else if store.loginWaiting {
+                    HStack(spacing: 4) {
+                        ProgressView().controlSize(.mini)
+                        Button("取消") { store.loginWaiting = false }
+                            .font(.system(size: 9)).buttonStyle(.plain).foregroundStyle(.secondary)
+                    }
+                } else {
+                    Button("登录") { Task { await store.browserLogin() } }
+                        .font(.system(size: 10, weight: .bold))
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.blue)
+                        .help("在浏览器中登录,多设备同步打卡和 Agent 记录")
+                }
+            }
+            Text("AI-native is a number now.")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var agentHeroCard: some View {
+        Card(bg: Brand.ink, stroke: .clear) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("🤖 \(store.live?.total ?? 0)")
+                        .font(.system(size: 26, weight: .black))
+                        .foregroundStyle(.white)
+                    Text("个 Agent 在上班")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.7))
+                    Spacer()
+                }
+                if let l = store.live, l.total > 0 {
+                    HStack(spacing: 10) {
+                        Label("\(l.working ?? 0) 在干活", systemImage: "bolt.fill")
+                            .font(.system(size: 11, weight: .heavy))
+                            .foregroundStyle(Brand.yellow)
+                        Label("\(l.idle ?? 0) 挂机中", systemImage: "moon.zzz.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                }
+                if let mine = store.myCompanyRow {
+                    Text("\(mine.name) · 近 7 天 Active \(String(format: "%.1f", mine.active_hours))h · 在岗 \(mine.live_now)")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+            }
+        }
+    }
+
+    private func pulseCard(_ p: Pulse) -> some View {
+        Card(bg: Brand.green.opacity(0.22)) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("🏃 今天已有 \(p.checked_out) 人下班")
+                    .font(.system(size: 13, weight: .heavy))
+                HStack(spacing: 8) {
+                    if p.still_working > 0 {
+                        Text("\(p.still_working) 人还在岗")
+                    }
+                    if p.companies_all_out > 0 {
+                        Text("🏢 \(p.companies_all_out) 家公司全员撤离")
+                    }
+                }
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func myAgentsCard(_ my: MyAgents) -> some View {
+        Card(bg: Brand.yellow.opacity(0.35)) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("⚡️ 你的 Agent 今天干了 \(String(format: "%.1f", my.active_hours)) 小时")
+                    .font(.system(size: 13, weight: .heavy))
+                Text("会话 \(my.sessions) 个 · 在岗 \(String(format: "%.1f", my.session_hours))h · 此刻 \(my.live_now) 个在跑")
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
+        }
+    }
 
-            // 公司设置
+    private var checkinSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // 公司行
             if store.company == nil || editingCompany {
                 HStack(spacing: 6) {
                     TextField("你的公司名", text: $companyDraft)
                         .textFieldStyle(.roundedBorder).font(.system(size: 12))
-                    Button("保存") {
-                        busy = true
-                        Task {
-                            await store.setCompany(companyDraft)
-                            editingCompany = false
-                            busy = false
-                        }
-                    }
-                    .disabled(busy || companyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
-                    .font(.system(size: 12, weight: .bold))
-                }
-            } else {
-                HStack {
-                    Text("🏢 \(store.company!)").font(.system(size: 12, weight: .heavy))
-                    Button("改") {
-                        companyDraft = store.company ?? ""
-                        editingCompany = true
-                    }
-                    .font(.system(size: 10)).buttonStyle(.plain).foregroundStyle(.secondary)
-                    Spacer()
+                        .onSubmit { saveCompany() }
+                    Button("保存") { saveCompany() }
+                        .disabled(busy || companyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .font(.system(size: 12, weight: .bold))
                 }
             }
 
-            // 在岗实况
-            HStack(spacing: 8) {
-                Text("🤖").font(.system(size: 24))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("此刻 \(store.liveTotal.map(String.init) ?? "—") 个 Agent 在上班")
-                        .font(.system(size: 13, weight: .heavy))
-                    if let mine = store.myCompanyRow {
-                        Text("\(mine.name):Active \(String(format: "%.1f", mine.active_hours))h · 在岗 \(mine.live_now)")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.06)))
-
-            // 我的 Agent 今日战报
-            if let my = store.myAgents, my.sessions > 0 {
-                HStack(spacing: 8) {
-                    Text("⚡️").font(.system(size: 20))
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("你的 Agent 今天干了 \(String(format: "%.1f", my.active_hours)) 小时")
-                            .font(.system(size: 12, weight: .heavy))
-                        Text("会话 \(my.sessions) 个 · 在岗 \(my.session_hours, specifier: "%.1f")h · 此刻 \(my.live_now) 个在跑")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.yellow.opacity(0.25)))
-            }
-
-            // 人类打卡(状态与 Web 同步)
             if let today = store.myToday, today.checked_in {
-                VStack(spacing: 6) {
+                HStack {
                     Text("✅ 今天 \(today.clocked_local ?? "") 已打卡")
-                        .font(.system(size: 14, weight: .black))
-                    Button("改成现在下班 🔁") {
-                        Task { await store.clockOut() }
-                    }
-                    .font(.system(size: 11, weight: .bold))
+                        .font(.system(size: 13, weight: .black))
+                    Spacer()
+                    Button("改成现在 🔁") { Task { await store.clockOut() } }
+                        .font(.system(size: 10, weight: .bold))
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
+                .padding(.vertical, 2)
             } else {
                 Button {
                     Task { await store.clockOut() }
                 } label: {
-                    Text("我下班了 🎉")
-                        .font(.system(size: 16, weight: .black))
+                    Text(store.company == nil ? "设置公司后打卡" : "我下班了 🎉")
+                        .font(.system(size: 15, weight: .black))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 9)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color(red: 1.0, green: 0.42, blue: 0.62))
+                .tint(Brand.pink)
                 .disabled(store.company == nil)
             }
 
-            // Agent 考勤接入(可复制命令)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("让你的 Agent 也被考勤(终端里跑一次):")
-                    .font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
+            if let c = store.company, !editingCompany {
+                HStack(spacing: 4) {
+                    Text("🏢 \(c)").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
+                    Button("改") {
+                        companyDraft = c
+                        editingCompany = true
+                    }
+                    .font(.system(size: 9)).buttonStyle(.plain).foregroundStyle(.secondary)
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    private func saveCompany() {
+        busy = true
+        Task {
+            await store.setCompany(companyDraft)
+            editingCompany = false
+            busy = false
+        }
+    }
+
+    private var installSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { showInstall.toggle() }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(showInstall ? "▾" : "▸").font(.system(size: 9, weight: .black))
+                    Text("让你的 Agent 也被考勤").font(.system(size: 10, weight: .bold))
+                }
+                .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+
+            if showInstall {
                 HStack(spacing: 6) {
                     Text(store.installCommand)
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
                         .lineLimit(1).truncationMode(.middle)
                         .padding(6)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.85)))
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Brand.ink))
                         .foregroundStyle(.white)
-                    Button(copied ? "✅" : "📋 复制") {
+                    Button(copied ? "✅" : "复制") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(store.installCommand, forType: .string)
                         copied = true
@@ -390,58 +537,37 @@ struct PopoverView: View {
                     }
                     .font(.system(size: 10, weight: .bold))
                 }
-            }
-
-            // 登录区(浏览器授权流)
-            if let mail = store.email {
-                HStack {
-                    Text("✓ \(mail)").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("退出登录") { store.logout() }
-                        .font(.system(size: 10)).buttonStyle(.plain).foregroundStyle(.secondary)
-                }
-            } else if store.loginWaiting {
-                HStack {
-                    ProgressView().controlSize(.small)
-                    Text("在浏览器里完成登录…").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("取消") { store.loginWaiting = false }
-                        .font(.system(size: 10)).buttonStyle(.plain).foregroundStyle(.secondary)
-                }
-            } else {
-                Button("登录:多设备同步你的打卡和 Agent 记录 →") {
-                    Task { await store.browserLogin() }
-                }
-                .font(.system(size: 10, weight: .bold)).buttonStyle(.plain)
-                .foregroundStyle(.blue)
-            }
-
-            if let err = store.errorText {
-                Text(err).font(.system(size: 10, weight: .bold)).foregroundStyle(.red)
-            }
-
-            Divider()
-
-            HStack {
-                Button("看榜") {
-                    if let url = URL(string: "\(store.apiBase)/agents") { openURL(url) }
-                }
-                .font(.system(size: 11, weight: .bold))
-                Spacer()
-                Button("刷新") { Task { await store.refresh() } }
-                    .font(.system(size: 11))
-                Button("退出 App") { NSApplication.shared.terminate(nil) }
-                    .font(.system(size: 11))
-                    .help("关闭菜单栏应用(不是退出登录)。重新打开:启动台或 Spotlight 搜 Agentosity")
+                Text("终端跑一次即可 · 支持 Claude Code / Codex / Gemini CLI / Cursor 等 stdio MCP harness")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
             }
         }
-        .padding(14)
-        .frame(width: 310)
-        .task {
-            await store.refresh()
+    }
+
+    private var footer: some View {
+        HStack(spacing: 12) {
+            Button("看榜 ↗") {
+                if let url = URL(string: "\(store.apiBase)/agents") { openURL(url) }
+            }
+            .font(.system(size: 11, weight: .bold))
+            .buttonStyle(.plain)
+            .foregroundStyle(.blue)
+            Spacer()
+            Button {
+                Task { await store.refresh() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.plain)
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .help("刷新")
+            Button("退出 App") { NSApplication.shared.terminate(nil) }
+                .font(.system(size: 10))
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("关闭菜单栏应用(不是退出登录)。重新打开:Spotlight 搜 Agentosity")
         }
-        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
-            Task { await store.refresh() }
-        }
+        .padding(.top, 2)
     }
 }

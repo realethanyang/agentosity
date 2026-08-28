@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
   const patch: Record<string, unknown> = { last_heartbeat_at: new Date().toISOString() };
   if (Number.isFinite(body.active_seconds)) patch.active_seconds = Math.max(0, Math.floor(body.active_seconds));
   if (typeof body.probe === "string") patch.probe = body.probe;
+  if (body.active === true) patch.last_active_at = new Date().toISOString();
 
   const { error } = await db()
     .from("agent_sessions")

@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
       harness: body?.harness ?? "unknown",
       probe: body?.probe ?? "none",
       user_token: (await userTokenFromRequest(req)) ?? body?.deviceId ?? null,
+      last_active_at: new Date().toISOString(), // 刚拉起会话 = 用户正开工
     })
     .select("id")
     .single();

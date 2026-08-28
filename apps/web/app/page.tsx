@@ -15,10 +15,19 @@ type Board = {
 const INDUSTRIES = ["互联网", "游戏", "AI", "硬件", "电商", "汽车", "内容", "消费"];
 const CITIES = ["北京", "上海", "深圳", "杭州", "广州"];
 
+type Pulse = {
+  checked_out: number;
+  still_working: number;
+  companies_all_out: number;
+  companies_total: number;
+};
+
 export default function Home() {
   const [board, setBoard] = useState<Board | null>(null);
   const [tag, setTag] = useState<{ type: string; value: string } | null>(null);
   const [liveTotal, setLiveTotal] = useState<number | null>(null);
+  const [liveWorking, setLiveWorking] = useState<number>(0);
+  const [pulse, setPulse] = useState<Pulse | null>(null);
 
   useEffect(() => {
     const q = tag ? `?tag_type=${tag.type}&tag=${encodeURIComponent(tag.value)}` : "";
@@ -26,7 +35,11 @@ export default function Home() {
   }, [tag]);
 
   useEffect(() => {
-    fetch("/api/agents").then((r) => r.json()).then((d) => setLiveTotal(d?.live?.total ?? null));
+    fetch("/api/agents").then((r) => r.json()).then((d) => {
+      setLiveTotal(d?.live?.total ?? null);
+      setLiveWorking(d?.live?.working ?? 0);
+    });
+    fetch("/api/pulse").then((r) => r.json()).then(setPulse).catch(() => {});
   }, []);
 
   const medals = ["🥇", "🥈", "🥉"];
@@ -44,13 +57,23 @@ export default function Home() {
         <p className="mt-3 font-bold opacity-70">
           全国上班族共同维护的真实下班时间数据库 · 只公布前三,绝不挂人
         </p>
-        {liveTotal != null && liveTotal > 0 && (
-          <Link href="/agents" className="mt-4 inline-block">
-            <span className="nb-card inline-block bg-[var(--nb-ink)] px-3 py-2 text-sm font-bold text-white">
-              🤖 此刻还有 {liveTotal} 个 Agent 在替人类上班 →
+        {/* 实时脉搏:打卡前就该看到的即时反馈 */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {pulse && (
+            <span className="nb-card inline-block bg-[var(--nb-green)] px-3 py-2 text-sm font-bold">
+              🏃 今天已有 {pulse.checked_out} 人下班
+              {pulse.still_working > 0 && ` · ${pulse.still_working} 人还在岗`}
+              {pulse.companies_all_out > 0 && ` · ${pulse.companies_all_out} 家公司全员撤离`}
             </span>
-          </Link>
-        )}
+          )}
+          {liveTotal != null && liveTotal > 0 && (
+            <Link href="/agents" className="inline-block">
+              <span className="nb-card inline-block bg-[var(--nb-ink)] px-3 py-2 text-sm font-bold text-white">
+                🤖 {liveTotal} 个 Agent 在上班({liveWorking} 个在干活)→
+              </span>
+            </Link>
+          )}
+        </div>
       </section>
 
       {/* 标签筛选 */}
