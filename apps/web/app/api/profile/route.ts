@@ -35,7 +35,11 @@ export async function GET(req: NextRequest) {
 /** 绑定/改绑公司。首绑免费;改绑每周一次。body: { companyId, deviceId? } */
 export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const token = (await userTokenFromRequest(req)) ?? body?.deviceId ?? null;
+  const authToken = await userTokenFromRequest(req);
+  if (process.env.REQUIRE_LOGIN === "1" && !authToken) {
+    return NextResponse.json({ error: "需要登录后绑定公司" }, { status: 401 });
+  }
+  const token = authToken ?? body?.deviceId ?? null;
   const companyId = body?.companyId;
   if (!token || !companyId) return NextResponse.json({ error: "缺少身份 / companyId" }, { status: 400 });
 

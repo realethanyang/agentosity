@@ -167,7 +167,8 @@ final class Store: ObservableObject {
             while true {
                 guard let self else { return }
                 await self.refresh()
-                if self.radarEnabled {
+                // 统一登录:雷达只在登录后工作
+                if self.radarEnabled && self.accessToken != nil {
                     await self.radar.tick()
                     self.radarCount = self.radar.adoptedCount
                 } else if self.radarCount > 0 {
@@ -345,39 +346,26 @@ final class Store: ObservableObject {
         myToday = nil
     }
 
-    /** 一键接入 MCP 考勤:App 替用户跑命令/写配置,消灭"装 App 还要跑命令"的第二个动作 */
+    /** 一键接入:复用 CLI 的 init(单一事实源,覆盖全部已适配 harness)。App 已登录,CLI 共用同一配置。 */
     func autoInstallMCP() async {
+        guard let comp = company else {
+            errorText = "先在网页绑定公司"
+            return
+        }
         installing = true
         defer { installing = false }
-        var parts: [String] = []
-
-        // Claude Code:用登录 shell 找 claude(GUI 进程的 PATH 很窄)
-        let result = await Task.detached {
-            let which = Self.loginShell("which claude")
-            guard !which.isEmpty else { return "Claude Code ✗ 未找到命令" }
-            let out = Self.loginShell("claude mcp add --scope user agentosity -- npx -y agentosity serve 2>&1")
-            return out.contains("Added") || out.contains("already exists") || out.isEmpty
-                ? "Claude Code ✅" : "Claude Code ✅"
+        let out = await Task.detached {
+            Self.loginShell("npx -y agentosity init \"\(comp)\" 2>&1")
         }.value
-        parts.append(result)
-
-        // Codex:直接写 config.toml(幂等)
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        if FileManager.default.fileExists(atPath: "\(home)/.codex") {
-            let cfgPath = "\(home)/.codex/config.toml"
-            let existing = (try? String(contentsOfFile: cfgPath, encoding: .utf8)) ?? ""
-            if existing.contains("mcp_servers.agentosity") {
-                parts.append("Codex ✅")
-            } else {
-                let block = "\n[mcp_servers.agentosity]\ncommand = \"npx\"\nargs = [\"-y\", \"agentosity\", \"serve\"]\n"
-                if (try? (existing + block).write(toFile: cfgPath, atomically: true, encoding: .utf8)) != nil {
-                    parts.append("Codex ✅")
-                } else {
-                    parts.append("Codex ✗ 写配置失败")
-                }
-            }
+        if out.contains("✅") {
+            let hits = out.split(separator: "\n").filter { $0.contains("✅") && !$0.contains("公司") }
+            installResult = "已接入 \(hits.count) 个 harness · 新开的会话生效"
+        } else if out.isEmpty {
+            installResult = "接入失败:未找到 npx(需要 Node.js)"
+        } else {
+            installResult = String(out.split(separator: "\n").last ?? "接入失败")
         }
-        installResult = parts.joined(separator: " · ") + " · 新开的会话生效"
+        await refresh()
     }
 
     nonisolated static func loginShell(_ cmd: String) -> String {
@@ -460,11 +448,29 @@ struct PopoverView: View {
             if let p = store.pulse, p.checked_out > 0 || p.still_working > 0 {
                 pulseCard(p)
             }
-            if let my = store.myAgents, my.sessions > 0 {
-                myAgentsCard(my)
+            if store.email == nil {
+                // 统一登录:未登录 = 只读橱窗 + 登录入口
+                Button {
+                    Task { await store.browserLogin() }
+                } label: {
+                    Text(store.loginWaiting ? "在浏览器里完成登录…" : "登录后开始使用 →")
+                        .font(.system(size: 15, weight: .black))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Brand.pink)
+                .disabled(store.loginWaiting)
+                Text("打卡 · Agent 考勤 · 个人战报,登录后解锁(免密码,邮箱验证码)")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            } else {
+                if let my = store.myAgents, my.sessions > 0 {
+                    myAgentsCard(my)
+                }
+                checkinSection
+                installSection
             }
-            checkinSection
-            installSection
             if let err = store.errorText {
                 Text(err).font(.system(size: 10, weight: .bold)).foregroundStyle(.red)
             }
@@ -634,39 +640,18 @@ struct PopoverView: View {
             .buttonStyle(.plain)
 
             if showInstall {
-                // 首选:App 替你干,不用碰终端
                 HStack(spacing: 6) {
-                    Button(store.installing ? "接入中…" : "🔌 一键接入 Claude Code / Codex") {
+                    Button(store.installing ? "接入中…" : "🔌 一键接入 Agent 考勤") {
                         Task { await store.autoInstallMCP() }
                     }
                     .disabled(store.installing)
                     .font(.system(size: 11, weight: .bold))
-                    if let r = store.installResult {
-                        Text(r).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
-                    }
                     Spacer()
                 }
-                // 兜底:其他 harness 手动
-                HStack(spacing: 6) {
-                    Text(store.installCommand)
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .lineLimit(1).truncationMode(.middle)
-                        .padding(6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Brand.ink))
-                        .foregroundStyle(.white)
-                    Button(copied ? "✅" : "复制") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(store.installCommand, forType: .string)
-                        copied = true
-                        Task {
-                            try? await Task.sleep(nanoseconds: 2_000_000_000)
-                            copied = false
-                        }
-                    }
-                    .font(.system(size: 10, weight: .bold))
+                if let r = store.installResult {
+                    Text(r).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
                 }
-                Text("终端跑一次即可 · 支持 Claude Code / Codex / OpenCode / Gemini CLI 等 stdio MCP harness")
+                Text("自动配置 Claude Code / Codex / Gemini / Cursor / Windsurf / OpenCode;没覆盖到的由 📡 雷达兜底")
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(.secondary)
             }

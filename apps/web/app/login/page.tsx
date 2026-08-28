@@ -20,10 +20,14 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [deviceCode, setDeviceCode] = useState<string | null>(null);
   const [deviceApproved, setDeviceApproved] = useState(false);
+  const [next, setNext] = useState<string | null>(null);
 
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("device");
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("device");
     if (code) setDeviceCode(code);
+    const n = params.get("next");
+    if (n && n.startsWith("/")) setNext(n);
   }, []);
 
   function friendly(msg: string): string {
@@ -105,6 +109,11 @@ export default function LoginPage() {
         )}
         {deviceApproved && (
           <p className="mt-6 text-lg font-black">🎉 菜单栏 App 已登录,回到它看看吧(本页可关闭)</p>
+        )}
+        {next && (
+          <Link href={next} className="nb-btn mt-6 inline-block bg-[var(--nb-pink)] px-6 py-3 font-black text-white">
+            继续 →
+          </Link>
         )}
         <div className="mt-6 flex justify-center gap-3">
           <Link href="/me" className="nb-btn bg-white px-4 py-2 font-bold">我的排名 →</Link>

@@ -30,6 +30,7 @@ export default function CheckinPage() {
   const [bfDate, setBfDate] = useState("");
   const [bfTime, setBfTime] = useState("19:00");
   const [error, setError] = useState<string | null>(null);
+  const [needLogin, setNeedLogin] = useState(false);
   const [today, setToday] = useState<{ checked_in: boolean; clocked_local?: string; company?: string } | null>(null);
   const [pulse, setPulse] = useState<{ checked_out: number; still_working: number; companies_all_out: number } | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -44,14 +45,20 @@ export default function CheckinPage() {
   };
 
   useEffect(() => {
-    loadProfile();
-    freshAuthHeaders().then((headers) =>
+    freshAuthHeaders().then((headers) => {
+      // 正式站统一登录
+      if (process.env.NEXT_PUBLIC_REQUIRE_LOGIN === "1" && !headers.Authorization) {
+        setNeedLogin(true);
+        loadPulse();
+        return;
+      }
+      loadProfile();
       fetch(`/api/my-today?device=${deviceId()}`, { headers })
         .then((r) => r.json())
         .then(setToday)
-        .catch(() => {})
-    );
-    loadPulse();
+        .catch(() => {});
+      loadPulse();
+    });
   }, []);
 
   useEffect(() => {
@@ -148,6 +155,32 @@ export default function CheckinPage() {
         <button onClick={() => setDone(null)} className="nb-btn mt-6 bg-white px-4 py-2 font-bold">
           返回
         </button>
+      </main>
+    );
+  }
+
+  if (needLogin) {
+    return (
+      <main className="mx-auto max-w-xl px-4 py-10">
+        <h1 className="text-3xl font-black">下班打卡</h1>
+        {pulse && (
+          <p className="mt-2 text-sm font-bold opacity-70">
+            🏃 今天已有 {pulse.checked_out} 人下班
+            {pulse.still_working > 0 && ` · ${pulse.still_working} 人还在岗`}
+          </p>
+        )}
+        <div className="nb-card mt-6 bg-white p-8 text-center">
+          <p className="text-lg font-black">登录后开始打卡</p>
+          <p className="mt-2 text-sm font-bold opacity-60">
+            免密码,邮箱验证码 30 秒搞定。你的打卡和 Agent 数据会跟着账号走,换设备不丢。
+          </p>
+          <Link
+            href="/login?next=/checkin"
+            className="nb-btn mt-4 inline-block bg-[var(--nb-pink)] px-8 py-3 font-black text-white"
+          >
+            登录 →
+          </Link>
+        </div>
       </main>
     );
   }

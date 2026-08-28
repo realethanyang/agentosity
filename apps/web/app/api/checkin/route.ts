@@ -12,7 +12,12 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const { companyId: bodyCompanyId, deviceId, backfill } = body ?? {};
-  const userToken = (await userTokenFromRequest(req)) ?? deviceId;
+  const authToken = await userTokenFromRequest(req);
+  // 正式站统一登录(demo 站不设 REQUIRE_LOGIN,现场扫码零门槛)
+  if (process.env.REQUIRE_LOGIN === "1" && !authToken) {
+    return NextResponse.json({ error: "需要登录后打卡" }, { status: 401 });
+  }
+  const userToken = authToken ?? deviceId;
   if (!userToken) {
     return NextResponse.json({ error: "缺少 deviceId" }, { status: 400 });
   }

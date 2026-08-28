@@ -19,13 +19,21 @@ type Live = {
   by_company: { name: string; harness: string; working: boolean; since_minutes: number }[];
 };
 
-const INSTALL_CMD = 'npx agentosity init "你的公司名"';
+const CMD_BLOCK = `npx agentosity login you@example.com     # 1. 收验证码
+npx agentosity login you@example.com 123456   # 2. 登录
+npx agentosity init "你的公司名"               # 3. 自动接入所有 harness`;
 
 export default function AgentsPage() {
   const [board, setBoard] = useState<AgentRow[] | null>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [period, setPeriod] = useState<{ from: string; to: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isMac, setIsMac] = useState(true);
+  const [showCmd, setShowCmd] = useState(false);
+
+  useEffect(() => {
+    setIsMac(/Mac/i.test(navigator.platform || navigator.userAgent));
+  }, []);
 
   useEffect(() => {
     const load = () =>
@@ -122,46 +130,55 @@ export default function AgentsPage() {
         </p>
       </section>
 
-      {/* mac App */}
-      <section className="nb-card mt-6 bg-white p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-black">🖥 mac 菜单栏 App</h2>
-            <p className="mt-1 text-xs font-bold opacity-70">
-              实时在岗 Agent · 一键打卡 · 📡 进程雷达自动补录本机 Agent 会话
-            </p>
-          </div>
-          <a
-            href="https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.app.zip"
-            className="nb-btn bg-[var(--nb-ink)] px-4 py-2 text-sm font-black text-white"
-          >
-            下载 ↓
-          </a>
-        </div>
-        <p className="mt-2 text-xs font-bold opacity-50">
-          解压拖进「应用程序」;首次打开若被拦截:右键 → 打开(未做 Apple 公证,开源可自行构建)
-        </p>
-      </section>
-
-      {/* 接入指南 */}
+      {/* 接入(按平台分流:mac 主推 App,其他平台主推命令) */}
       <section className="nb-card mt-6 bg-[var(--nb-yellow)] p-5">
         <h2 className="text-2xl font-black">让你的 Agent 也上榜</h2>
-        <p className="mt-1 text-sm font-bold">一条命令,自动考勤,不用改任何 prompt:</p>
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(INSTALL_CMD).then(() => {
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            });
-          }}
-          className="nb-card mt-3 block w-full cursor-pointer overflow-x-auto bg-[var(--nb-ink)] p-4 text-left text-sm font-bold text-white"
-          title="点击复制"
-        >
-          <span className="flex items-center justify-between gap-3">
-            <code>{INSTALL_CMD}</code>
-            <span className="shrink-0 text-xs opacity-70">{copied ? "✅ 已复制" : "📋 点击复制"}</span>
-          </span>
-        </button>
+        <p className="mt-1 text-sm font-bold">自动考勤,不用改任何 prompt。</p>
+
+        {isMac ? (
+          <>
+            <div className="nb-card mt-3 flex flex-wrap items-center justify-between gap-3 bg-white p-4">
+              <div>
+                <div className="text-lg font-black">🖥 下载 mac 菜单栏 App(推荐)</div>
+                <p className="mt-1 text-xs font-bold opacity-70">
+                  登录 → 绑公司 → 一键接入。📡 雷达还会自动补录本机已开着的 Agent 会话,零终端。
+                </p>
+              </div>
+              <a
+                href="https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.app.zip"
+                className="nb-btn bg-[var(--nb-ink)] px-4 py-2 text-sm font-black text-white"
+              >
+                下载 ↓
+              </a>
+            </div>
+            <p className="mt-1 text-xs font-bold opacity-50">
+              解压拖进「应用程序」;首次打开若被拦截:右键 → 打开
+            </p>
+            <button onClick={() => setShowCmd(!showCmd)} className="mt-2 text-xs font-bold underline opacity-60">
+              {showCmd ? "收起" : "不想装 App?用终端命令(全平台通用)→"}
+            </button>
+          </>
+        ) : (
+          <p className="mt-2 text-xs font-bold opacity-70">三行命令(需要 Node.js):</p>
+        )}
+
+        {(!isMac || showCmd) && (
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(CMD_BLOCK.replace(/\s+#[^\n]*/g, "")).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              });
+            }}
+            className="nb-card mt-3 block w-full cursor-pointer overflow-x-auto bg-[var(--nb-ink)] p-4 text-left text-sm font-bold text-white"
+            title="点击复制(不含注释)"
+          >
+            <span className="flex items-start justify-between gap-3">
+              <code className="whitespace-pre">{CMD_BLOCK}</code>
+              <span className="shrink-0 text-xs opacity-70">{copied ? "✅ 已复制" : "📋 点击复制"}</span>
+            </span>
+          </button>
+        )}
         <div className="mt-3 text-xs font-bold">
           <span className="opacity-70">支持的 Agent Harness:</span>
           <div className="mt-1 flex flex-wrap gap-1">
