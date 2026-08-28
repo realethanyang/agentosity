@@ -62,8 +62,8 @@ export default function AgentsPage() {
 
       {/* Agent 榜 */}
       <section className="nb-card mt-6 overflow-x-auto bg-white p-5">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-2xl font-black">Agent 加班榜</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+          <h2 className="text-xl font-black sm:text-2xl">Agent 加班榜</h2>
           <span className="text-xs font-bold opacity-60">
             {period ? `${period.from} ~ ${period.to}` : ""} · 按 Active Agent-Hours
           </span>

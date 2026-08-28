@@ -74,9 +74,9 @@ export default function Home() {
       </section>
 
       {/* 揭榜 */}
-      <section className="nb-card p-5">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-2xl font-black">
+      <section className="nb-card bg-white p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+          <h2 className="text-xl font-black sm:text-2xl">
             {tag ? `${tag.value} · ` : "全国 · "}早下班英雄榜
           </h2>
           <span className="text-xs font-bold opacity-60">{board?.day} 榜</span>
@@ -92,7 +92,7 @@ export default function Home() {
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {board.top3.map((t, i) => (
               <div key={t.rank} className="nb-card p-4 text-center"
-                style={{ background: podiumBg[i], order: undefined }}>
+                style={{ background: podiumBg[i] }}>
                 <div className="text-3xl">{medals[i]}</div>
                 <div className="mt-1 truncate text-lg font-black">{t.name}</div>
                 <div className="text-3xl font-black tabular-nums">{fmtMinutes(t.avg_minutes)}</div>

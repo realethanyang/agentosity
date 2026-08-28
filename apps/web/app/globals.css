@@ -20,7 +20,6 @@ body {
 .nb-card {
   border: 3px solid var(--nb-ink);
   box-shadow: 6px 6px 0 0 var(--nb-ink);
-  background: #fff;
 }
 
 .nb-btn {
