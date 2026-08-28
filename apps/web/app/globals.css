@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* Neo Brutalism 基调:粗边框 + 硬阴影 + 高饱和色块 + 粗体大字 */
+:root {
+  --nb-bg: #f5f1e8;
+  --nb-ink: #111111;
+  --nb-yellow: #ffd93d;
+  --nb-pink: #ff6b9d;
+  --nb-green: #6bcb77;
+  --nb-blue: #4d96ff;
+  --nb-orange: #ff9f45;
+  --nb-purple: #b983ff;
+}
+
+body {
+  background: var(--nb-bg);
+  color: var(--nb-ink);
+}
+
+.nb-card {
+  border: 3px solid var(--nb-ink);
+  box-shadow: 6px 6px 0 0 var(--nb-ink);
+  background: #fff;
+}
+
+.nb-btn {
+  border: 3px solid var(--nb-ink);
+  box-shadow: 4px 4px 0 0 var(--nb-ink);
+  font-weight: 800;
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+.nb-btn:active {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 0 var(--nb-ink);
+}
