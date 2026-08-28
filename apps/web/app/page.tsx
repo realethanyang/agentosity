@@ -16,9 +16,15 @@ type AgentRow = {
   name: string;
   active_hours: number;
   human_avg_minutes: number | null;
+  leverage: number | null;
   live_now: number;
   working_now: number;
 };
+
+function agentosityScore(leverage: number | null): number | null {
+  if (leverage == null || leverage <= 0) return null;
+  return Math.round((100 * leverage) / (leverage + 1));
+}
 type Top3 = { rank: number; name: string; avg_minutes: number; count: number };
 type Pulse = {
   checked_out: number;
@@ -201,8 +207,9 @@ export default function Home() {
                   <td className="py-1.5 font-black">{i + 1}</td>
                   <td>{r.name}</td>
                   <td className="text-right tabular-nums font-black">{r.active_hours} h</td>
-                  <td className="text-right text-xs tabular-nums opacity-60">
-                    {r.human_avg_minutes != null ? `平均下班 ${fmtMinutes(r.human_avg_minutes)}` : ""}
+                  <td className="text-right text-xs tabular-nums opacity-60"
+                    title="Agentosity 指数:50 分 = AI 干的活与人类打平">
+                    {agentosityScore(r.leverage) != null ? `指数 ${agentosityScore(r.leverage)}` : ""}
                   </td>
                   <td className="w-14 text-right text-xs tabular-nums">
                     {r.live_now > 0 ? `⚡${r.working_now}/${r.live_now}` : ""}

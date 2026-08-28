@@ -8,9 +8,16 @@ type AgentRow = {
   active_hours: number;
   daa_today: number;
   human_avg_minutes: number | null;
+  leverage: number | null;
   live_now: number;
   working_now: number;
 };
+
+/** Agentosity 指数:100×L/(L+1),50 分 = AI 与人打平;无人类打卡数据不出分 */
+function agentosityScore(leverage: number | null): number | null {
+  if (leverage == null || leverage <= 0) return null;
+  return Math.round((100 * leverage) / (leverage + 1));
+}
 type Top3 = { rank: number; name: string; avg_minutes: number; count: number };
 type Board = {
   day: string;
@@ -98,13 +105,14 @@ export default function LeaderboardPage() {
                   <th className="py-2">#</th>
                   <th>公司</th>
                   <th className="text-right" title="该公司全部 Agent 真实干活的时长(探针过滤,不含挂机)">
-                    Agent Hours{mode === "avg" ? "(日均)" : `(${days}天)`}
+                    agent-hours{mode === "avg" ? "(日均)" : `(${days}天)`}
                   </th>
                   <th className="text-right" title="Daily Active Agents:今天真实干过活的 Agent 会话数">
                     DAA(今日)
                   </th>
-                  <th className="text-right" title="该公司真人最近一日的平均下班时间">
-                    平均下班
+                  <th className="text-right"
+                    title="Agentosity 指数 = 100×L/(L+1),L = agent-hours ÷ 人类工时。50 分 = AI 干的活与人类打平">
+                    Agentosity 指数
                   </th>
                   <th className="text-right" title="此刻:正在干活数/在岗总数">在岗</th>
                 </tr>
@@ -119,7 +127,16 @@ export default function LeaderboardPage() {
                     </td>
                     <td className="text-right tabular-nums">{r.daa_today}</td>
                     <td className="text-right tabular-nums">
-                      {r.human_avg_minutes != null ? fmtMinutes(r.human_avg_minutes) : <span className="opacity-30">—</span>}
+                      {agentosityScore(r.leverage) != null ? (
+                        <span
+                          className="font-black"
+                          title={`人均 ${r.human_avg_minutes != null ? fmtMinutes(r.human_avg_minutes) : "—"} 走 · 杠杆 ${r.leverage}`}
+                        >
+                          {agentosityScore(r.leverage)}
+                        </span>
+                      ) : (
+                        <span className="opacity-30" title="需要人类打卡数据才能计算">—</span>
+                      )}
                     </td>
                     <td className="text-right">
                       {r.live_now > 0 ? (
@@ -136,7 +153,8 @@ export default function LeaderboardPage() {
             </table>
           )}
           <p className="mt-2 text-xs font-bold opacity-50">
-            工时 = 探针测出的真实干活时长(挂机不算)· 悬停列头看指标定义 ·「平均下班 18:05,Agent 还在干」
+            agent-hours = 探针测出的真实干活时长(挂机不算)· Agentosity 指数过 50 = AI 干的活比人多 ·
+            没有指数?拉同事打卡就有了 · 悬停列头看定义
           </p>
         </section>
       ) : (
