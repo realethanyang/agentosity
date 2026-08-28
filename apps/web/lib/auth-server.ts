@@ -1,5 +1,17 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { db } from "@/lib/supabase";
+
+let pub: SupabaseClient | null = null;
+
+/** 永远指向 public schema 的 client:登录/设备授权等全局表,不随 DATA_SCHEMA 走 */
+export function dbPublic(): SupabaseClient {
+  if (!pub) {
+    pub = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+      auth: { persistSession: false },
+    });
+  }
+  return pub;
+}
 
 /** 匿名 client:仅用于发送/校验 OTP */
 export function anonClient() {

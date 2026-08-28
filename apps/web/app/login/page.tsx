@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { deviceId } from "@/lib/device";
 import { authState, saveAuth, clearAuth } from "@/lib/auth-client";
@@ -13,6 +13,31 @@ export default function LoginPage() {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deviceCode, setDeviceCode] = useState<string | null>(null);
+  const [deviceApproved, setDeviceApproved] = useState(false);
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("device");
+    if (code) setDeviceCode(code);
+  }, []);
+
+  function friendly(msg: string): string {
+    if (/security purposes/i.test(msg)) return "发送太频繁了,等 60 秒再试";
+    if (/expired|invalid/i.test(msg)) return "验证码不对或已过期";
+    return msg;
+  }
+
+  async function approveDevice(token: string) {
+    if (!deviceCode) return;
+    const r = await fetch("/api/device/approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ code: deviceCode }),
+    });
+    const d = await r.json();
+    if (d.ok) setDeviceApproved(true);
+    else setError(d.error ?? "授权失败");
+  }
 
   async function sendCode() {
     setBusy(true);
@@ -25,7 +50,7 @@ export default function LoginPage() {
     const d = await r.json();
     setBusy(false);
     if (d.ok) setStage("code");
-    else setError(d.error ?? "发送失败,稍后再试");
+    else setError(friendly(d.error ?? "发送失败,稍后再试"));
   }
 
   async function verify() {
@@ -41,7 +66,8 @@ export default function LoginPage() {
     if (d.ok) {
       saveAuth({ email: d.email, token: d.access_token });
       setStage("done");
-    } else setError(d.error ?? "验证失败");
+      if (deviceCode) await approveDevice(d.access_token);
+    } else setError(friendly(d.error ?? "验证失败"));
   }
 
   if (stage === "done") {
@@ -56,6 +82,17 @@ export default function LoginPage() {
             这台设备的打卡历史已合并进账号,换设备登录同一邮箱即可同步。
           </p>
         </div>
+        {deviceCode && !deviceApproved && (
+          <button
+            onClick={() => a && approveDevice(a.token)}
+            className="nb-btn mt-6 bg-[var(--nb-blue)] px-6 py-3 font-black text-white"
+          >
+            授权菜单栏 App 使用此账号 →
+          </button>
+        )}
+        {deviceApproved && (
+          <p className="mt-6 text-lg font-black">🎉 菜单栏 App 已登录,回到它看看吧(本页可关闭)</p>
+        )}
         <div className="mt-6 flex justify-center gap-3">
           <Link href="/me" className="nb-btn bg-white px-4 py-2 font-bold">我的排名 →</Link>
           <button

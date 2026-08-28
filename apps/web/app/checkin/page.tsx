@@ -18,10 +18,15 @@ export default function CheckinPage() {
   const [bfDate, setBfDate] = useState("");
   const [bfTime, setBfTime] = useState("19:00");
   const [error, setError] = useState<string | null>(null);
+  const [today, setToday] = useState<{ checked_in: boolean; clocked_local?: string; company?: string } | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     setCompany(savedCompany());
+    fetch(`/api/my-today?device=${deviceId()}`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then(setToday)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -96,6 +101,12 @@ export default function CheckinPage() {
   return (
     <main className="mx-auto max-w-xl px-4 py-10">
       <h1 className="text-3xl font-black">下班打卡</h1>
+      {today?.checked_in && (
+        <div className="nb-card mt-4 bg-[var(--nb-green)] p-3 text-sm font-bold">
+          ✅ 今天已打卡 {today.clocked_local}
+          {today.company ? ` · ${today.company}` : ""} —— 再打以最后一次为准
+        </div>
+      )}
 
       {/* 选公司 */}
       <section className="mt-6">
@@ -146,7 +157,7 @@ export default function CheckinPage() {
           onClick={() => punch()}
           className="nb-btn w-full bg-[var(--nb-pink)] py-8 text-3xl font-black text-white disabled:opacity-40"
         >
-          {busy ? "打卡中…" : "我下班了 🎉"}
+          {busy ? "打卡中…" : today?.checked_in ? "更新为现在下班 🔁" : "我下班了 🎉"}
         </button>
         <p className="mt-2 text-xs font-bold opacity-50">
           匿名 · 一天一次 · 重复打卡以最后一次为准

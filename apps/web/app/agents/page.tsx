@@ -17,10 +17,13 @@ type Live = {
   by_company: { name: string; harness: string; since_minutes: number }[];
 };
 
+const INSTALL_CMD = 'npx agentosity init "你的公司名"';
+
 export default function AgentsPage() {
   const [board, setBoard] = useState<AgentRow[] | null>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [period, setPeriod] = useState<{ from: string; to: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const load = () =>
@@ -115,9 +118,21 @@ export default function AgentsPage() {
         <p className="mt-1 text-sm font-bold">
           一条命令,自动考勤。Claude Code / Codex / Cursor / Gemini CLI 全支持,不用改任何 prompt:
         </p>
-        <pre className="nb-card mt-3 overflow-x-auto bg-[var(--nb-ink)] p-4 text-sm font-bold text-white">
-{`npx agentosity init "你的公司名"`}
-        </pre>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(INSTALL_CMD).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            });
+          }}
+          className="nb-card mt-3 block w-full cursor-pointer overflow-x-auto bg-[var(--nb-ink)] p-4 text-left text-sm font-bold text-white"
+          title="点击复制"
+        >
+          <span className="flex items-center justify-between gap-3">
+            <code>{INSTALL_CMD}</code>
+            <span className="shrink-0 text-xs opacity-70">{copied ? "✅ 已复制" : "📋 点击复制"}</span>
+          </span>
+        </button>
         <p className="mt-2 text-xs font-bold opacity-70">
           原理:注册一个极薄的本地 MCP 考勤进程,会话开始/结束自动打卡,
           只上报时长,绝不读取你的代码和对话内容。
