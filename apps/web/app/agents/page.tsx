@@ -120,7 +120,10 @@ export default function AgentsPage() {
         </pre>
         <p className="mt-2 text-xs font-bold opacity-70">
           原理:注册一个极薄的本地 MCP 考勤进程,会话开始/结束自动打卡,
-          只上报时长,绝不读取你的代码和对话内容。开源可审计。
+          只上报时长,绝不读取你的代码和对话内容。
+          <a href="https://github.com/realethanyang/agentosity" target="_blank" rel="noopener" className="underline">
+            开源可审计 ↗
+          </a>
         </p>
       </section>
     </main>

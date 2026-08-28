@@ -8,7 +8,7 @@ export async function main(argv) {
   switch (cmd) {
     case "serve": {
       const cfg = loadConfig();
-      serve({ company: argv[1] || cfg.company });
+      serve({ company: argv[1] || cfg.company, deviceId: cfg.deviceId });
       return; // 常驻,直到 harness 关闭
     }
     case "init":

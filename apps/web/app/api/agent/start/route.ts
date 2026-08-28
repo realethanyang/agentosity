@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
+import { userTokenFromRequest } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
       company_id: comp.id,
       harness: body?.harness ?? "unknown",
       probe: body?.probe ?? "none",
-      user_token: body?.deviceId ?? null,
+      user_token: (await userTokenFromRequest(req)) ?? body?.deviceId ?? null,
     })
     .select("id")
     .single();

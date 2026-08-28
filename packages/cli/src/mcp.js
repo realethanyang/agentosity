@@ -9,7 +9,7 @@ const HEARTBEAT_MS = parseInt(process.env.AGENTOSITY_HB_MS ?? "", 10) || 60_000;
  * stdio MCP 考勤服务:harness 拉起本进程即上班,杀掉即下班。
  * 模型零参与:initialize 握手 = start,stdin EOF / SIGTERM = end(遗言),心跳为准。
  */
-export function serve({ company }) {
+export function serve({ company, deviceId }) {
   const startMs = Date.now();
   let sessionId = null;
   let startPromise = null;
@@ -24,7 +24,7 @@ export function serve({ company }) {
 
   function startSession() {
     if (!company || startPromise) return;
-    startPromise = post("/api/agent/start", { company, harness, probe: probeLabel }).then((r) => {
+    startPromise = post("/api/agent/start", { company, harness, probe: probeLabel, deviceId }).then((r) => {
       if (r?.session_id) sessionId = r.session_id;
     });
   }
