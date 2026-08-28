@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { deviceId, savedCompany, saveCompany, SavedCompany } from "@/lib/device";
-import { authHeaders } from "@/lib/auth-client";
+import { freshAuthHeaders } from "@/lib/auth-client";
 
 type Company = { id: string; name: string };
 
@@ -27,10 +27,12 @@ export default function CheckinPage() {
 
   useEffect(() => {
     setCompany(savedCompany());
-    fetch(`/api/my-today?device=${deviceId()}`, { headers: authHeaders() })
-      .then((r) => r.json())
-      .then(setToday)
-      .catch(() => {});
+    freshAuthHeaders().then((headers) =>
+      fetch(`/api/my-today?device=${deviceId()}`, { headers })
+        .then((r) => r.json())
+        .then(setToday)
+        .catch(() => {})
+    );
     loadPulse();
   }, []);
 
@@ -72,7 +74,7 @@ export default function CheckinPage() {
     setError(null);
     const r = await fetch("/api/checkin", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json", ...(await freshAuthHeaders()) },
       body: JSON.stringify({ companyId: company.id, deviceId: deviceId(), backfill }),
     });
     const d = await r.json();

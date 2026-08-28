@@ -64,7 +64,7 @@ export default function LoginPage() {
     const d = await r.json();
     setBusy(false);
     if (d.ok) {
-      saveAuth({ email: d.email, token: d.access_token });
+      saveAuth({ email: d.email, token: d.access_token, refresh: d.refresh_token });
       setStage("done");
       if (deviceCode) await approveDevice(d.access_token);
     } else setError(friendly(d.error ?? "验证失败"));

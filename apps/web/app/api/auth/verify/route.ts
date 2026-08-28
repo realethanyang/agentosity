@@ -35,5 +35,6 @@ export async function POST(req: NextRequest) {
     ok: true,
     email,
     access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
   });
 }

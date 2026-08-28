@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { deviceId } from "@/lib/device";
 import { fmtMinutes } from "@/lib/time";
-import { authHeaders, authState } from "@/lib/auth-client";
+import { freshAuthHeaders, authState } from "@/lib/auth-client";
 
 type MyRank = {
   found: boolean;
@@ -22,9 +22,11 @@ export default function MePage() {
   const [data, setData] = useState<MyRank | null>(null);
 
   useEffect(() => {
-    fetch(`/api/me?device=${deviceId()}`, { headers: authHeaders() })
-      .then((r) => r.json())
-      .then(setData);
+    freshAuthHeaders().then((headers) =>
+      fetch(`/api/me?device=${deviceId()}`, { headers })
+        .then((r) => r.json())
+        .then(setData)
+    );
   }, []);
 
   const logged = typeof window !== "undefined" ? authState() : null;

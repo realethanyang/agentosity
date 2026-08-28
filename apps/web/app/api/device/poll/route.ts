@@ -21,5 +21,10 @@ export async function GET(req: NextRequest) {
   if (!data.approved_at) return NextResponse.json({ pending: true });
 
   await supa.from("device_codes").delete().eq("code", code);
-  return NextResponse.json({ ok: true, access_token: data.access_token, email: data.email });
+  return NextResponse.json({
+    ok: true,
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    email: data.email,
+  });
 }

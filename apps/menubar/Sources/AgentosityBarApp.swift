@@ -67,7 +67,28 @@ struct DevicePoll: Codable {
     let pending: Bool?
     let expired: Bool?
     let access_token: String?
+    let refresh_token: String?
     let email: String?
+}
+
+struct RefreshResult: Codable {
+    let ok: Bool?
+    let access_token: String?
+    let refresh_token: String?
+    let email: String?
+}
+
+/** JWT exp(毫秒);解析失败按已过期处理 */
+func jwtExpMs(_ token: String) -> Double {
+    let parts = token.split(separator: ".")
+    guard parts.count >= 2 else { return 0 }
+    var b64 = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+    while b64.count % 4 != 0 { b64 += "=" }
+    guard let data = Data(base64Encoded: b64),
+          let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let exp = obj["exp"] as? Double
+    else { return 0 }
+    return exp * 1000
 }
 
 // MARK: - 品牌色
@@ -150,8 +171,33 @@ final class Store: ObservableObject {
         accessToken != nil ? "" : "?device=\(deviceId ?? "")"
     }
 
+    /** access token 快过期就用 refresh token 换新(轮换制,新旧一起存) */
+    func ensureFreshToken() async {
+        guard let t = accessToken else { return }
+        if jwtExpMs(t) - Date().timeIntervalSince1970 * 1000 > 5 * 60 * 1000 { return }
+        guard let rt = config["refreshToken"] as? String else {
+            patchConfig(["email": nil, "accessToken": nil])
+            config = loadRawConfig()
+            return
+        }
+        patchConfig(["accessToken": nil]) // 请求续期时不带过期 token
+        config = loadRawConfig()
+        guard let d = try? await request("/api/auth/refresh", method: "POST", json: ["refresh_token": rt]),
+              let r = try? JSONDecoder().decode(RefreshResult.self, from: d), r.ok == true,
+              let at = r.access_token
+        else {
+            // 续期失败:退回未登录态
+            patchConfig(["email": nil, "accessToken": nil, "refreshToken": nil])
+            config = loadRawConfig()
+            return
+        }
+        patchConfig(["accessToken": at, "refreshToken": r.refresh_token ?? rt])
+        config = loadRawConfig()
+    }
+
     func refresh() async {
         config = loadRawConfig()
+        await ensureFreshToken()
         do {
             let data = try await request("/api/agents")
             let resp = try JSONDecoder().decode(AgentsResponse.self, from: data)
@@ -240,7 +286,7 @@ final class Store: ObservableObject {
                   let poll = try? JSONDecoder().decode(DevicePoll.self, from: pd)
             else { continue }
             if poll.ok == true, let token = poll.access_token, let mail = poll.email {
-                patchConfig(["email": mail, "accessToken": token])
+                patchConfig(["email": mail, "accessToken": token, "refreshToken": poll.refresh_token])
                 config = loadRawConfig()
                 loginWaiting = false
                 await refresh()
@@ -256,7 +302,7 @@ final class Store: ObservableObject {
     }
 
     func logout() {
-        patchConfig(["email": nil, "accessToken": nil])
+        patchConfig(["email": nil, "accessToken": nil, "refreshToken": nil])
         config = loadRawConfig()
         myAgents = nil
         myToday = nil
