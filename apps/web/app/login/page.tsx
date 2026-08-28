@@ -3,14 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { deviceId } from "@/lib/device";
-import { authState, saveAuth, clearAuth } from "@/lib/auth-client";
+import { authState, saveAuth, clearAuth, freshAuthHeaders } from "@/lib/auth-client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [stage, setStage] = useState<"email" | "code" | "done">(
-    typeof window !== "undefined" && authState() ? "done" : "email"
-  );
+  const [stage, setStage] = useState<"email" | "code" | "done">("email");
+
+  useEffect(() => {
+    // 不信任本地存的登录态:校验/续期通过才算已登录(过期又无法续期会被清掉)
+    freshAuthHeaders().then((h) => {
+      if (h.Authorization) setStage("done");
+    });
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deviceCode, setDeviceCode] = useState<string | null>(null);
@@ -27,11 +32,19 @@ export default function LoginPage() {
     return msg;
   }
 
-  async function approveDevice(token: string) {
+  async function approveDevice(token?: string) {
     if (!deviceCode) return;
+    const headers: Record<string, string> = token
+      ? { Authorization: `Bearer ${token}` }
+      : await freshAuthHeaders(); // 已登录场景:用校验/续期过的 token,不用本地可能过期的
+    if (!headers.Authorization) {
+      setStage("email");
+      setError("登录态已过期,重新登录一次再授权");
+      return;
+    }
     const r = await fetch("/api/device/approve", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify({ code: deviceCode }),
     });
     const d = await r.json();
@@ -84,7 +97,7 @@ export default function LoginPage() {
         </div>
         {deviceCode && !deviceApproved && (
           <button
-            onClick={() => a && approveDevice(a.token)}
+            onClick={() => approveDevice()}
             className="nb-btn mt-6 bg-[var(--nb-blue)] px-6 py-3 font-black text-white"
           >
             授权菜单栏 App 使用此账号 →

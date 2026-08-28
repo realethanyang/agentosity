@@ -9,5 +9,11 @@
     "swiftmodule": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBarApp~partial.swiftmodule",
     "swift-dependencies": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBarApp.swiftdeps",
     "diagnostics": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBarApp.dia"
+  },
+  "/Users/ethanyang/projects/agentosity/apps/menubar/Sources/RadarEngine.swift": {
+    "object": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/RadarEngine.swift.o",
+    "swiftmodule": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/RadarEngine~partial.swiftmodule",
+    "swift-dependencies": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/RadarEngine.swiftdeps",
+    "diagnostics": "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/RadarEngine.dia"
   }
 }

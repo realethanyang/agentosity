@@ -25,10 +25,9 @@ export async function POST(req: NextRequest) {
 
   const userToken = `user:${data.user.id}`;
 
-  // 设备历史合并进账号(打卡 + agent 会话)
+  // 设备历史合并进账号(同日冲突保留更晚打卡)
   if (body?.deviceId) {
-    await db().from("checkins").update({ user_token: userToken }).eq("user_token", body.deviceId);
-    await db().from("agent_sessions").update({ user_token: userToken }).eq("user_token", body.deviceId);
+    await db().rpc("fn_merge_identity", { p_device: body.deviceId, p_user: userToken });
   }
 
   return NextResponse.json({

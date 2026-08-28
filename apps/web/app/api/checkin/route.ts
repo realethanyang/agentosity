@@ -47,12 +47,23 @@ export async function POST(req: NextRequest) {
   );
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // 你是今天第几个下班的(公司内 / 全网,按打卡时刻排)
+  const iso = clockedAt.toISOString();
+  const [companyRank, globalRank] = await Promise.all([
+    db().from("checkins").select("*", { count: "exact", head: true })
+      .eq("day_key", dayKey).eq("company_id", companyId).lte("clocked_at", iso),
+    db().from("checkins").select("*", { count: "exact", head: true })
+      .eq("day_key", dayKey).lte("clocked_at", iso),
+  ]);
+
   const s = shanghaiNow(clockedAt);
   const early = s.hour < 5; // 凌晨打卡归前一天
   return NextResponse.json({
     ok: true,
     day_key: dayKey,
     clocked_local: `${s.date} ${String(s.hour).padStart(2, "0")}:${String(s.minute).padStart(2, "0")}`,
+    rank_company: companyRank.count ?? null,
+    rank_global: globalRank.count ?? null,
     note: early ? "凌晨打卡,这条算作前一天的下班" : null,
   });
 }

@@ -22,6 +22,15 @@ export async function POST(req: NextRequest) {
   if (!name || name.length > 40) {
     return NextResponse.json({ error: "公司名不合法" }, { status: 400 });
   }
+  // 大小写不敏感的 find-or-create,避免 "Agentosity" / "agentosity" 分裂成两家
+  const escaped = name.replace(/[%_]/g, "\\$&");
+  const { data: existing } = await db()
+    .from("companies")
+    .select("id, name")
+    .ilike("name", escaped)
+    .limit(1);
+  if (existing && existing.length > 0) return NextResponse.json(existing[0]);
+
   const { data, error } = await db()
     .from("companies")
     .upsert(

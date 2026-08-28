@@ -139,7 +139,42 @@ final class Store: ObservableObject {
     @Published var myToday: MyToday?
     @Published var errorText: String?
     @Published var loginWaiting = false
+    @Published var radarCount = 0
     @Published var config: [String: Any] = loadRawConfig()
+
+    let radar = RadarEngine()
+    private var backgroundStarted = false
+
+    var radarEnabled: Bool { (config["radar"] as? Bool) ?? true }
+
+    /** 常驻循环:雷达补录 + 菜单栏数字刷新(弹窗关着也在跑) */
+    func startBackground() {
+        guard !backgroundStarted else { return }
+        backgroundStarted = true
+        radar.apiBase = { [weak self] in self?.apiBase ?? "https://agentosity.com" }
+        radar.company = { [weak self] in self?.company }
+        radar.deviceId = { [weak self] in self?.deviceId }
+        radar.accessToken = { [weak self] in self?.accessToken }
+        Task { [weak self] in
+            while true {
+                guard let self else { return }
+                await self.refresh()
+                if self.radarEnabled {
+                    await self.radar.tick()
+                    self.radarCount = self.radar.adoptedCount
+                } else if self.radarCount > 0 {
+                    await self.radar.shutdown()
+                    self.radarCount = 0
+                }
+                try? await Task.sleep(nanoseconds: 30_000_000_000)
+            }
+        }
+    }
+
+    func setRadar(enabled: Bool) {
+        patchConfig(["radar": enabled])
+        config = loadRawConfig()
+    }
 
     var company: String? { config["company"] as? String }
     var deviceId: String? { config["deviceId"] as? String }
@@ -289,6 +324,10 @@ final class Store: ObservableObject {
                 patchConfig(["email": mail, "accessToken": token, "refreshToken": poll.refresh_token])
                 config = loadRawConfig()
                 loginWaiting = false
+                // 把这台设备的匿名历史并入账号
+                if let dev = deviceId {
+                    _ = try? await request("/api/auth/merge", method: "POST", json: ["deviceId": dev])
+                }
                 await refresh()
                 return
             }
@@ -319,11 +358,14 @@ struct AgentosityBarApp: App {
         MenuBarExtra {
             PopoverView(store: store)
         } label: {
-            if let l = store.live, l.total > 0 {
-                Text("🤖\(l.total)")
-            } else {
-                Text("🤖")
+            Group {
+                if let l = store.live, l.total > 0 {
+                    Text("🤖\(l.total)")
+                } else {
+                    Text("🤖")
+                }
             }
+            .task { store.startBackground() }
         }
         .menuBarExtraStyle(.window)
     }
@@ -501,6 +543,10 @@ struct PopoverView: View {
                     Button("保存") { saveCompany() }
                         .disabled(busy || companyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
                         .font(.system(size: 12, weight: .bold))
+                    if store.company != nil {
+                        Button("取消") { editingCompany = false }
+                            .font(.system(size: 12)).foregroundStyle(.secondary)
+                    }
                 }
             }
 
@@ -583,10 +629,27 @@ struct PopoverView: View {
                     }
                     .font(.system(size: 10, weight: .bold))
                 }
-                Text("终端跑一次即可 · 支持 Claude Code / Codex / Gemini CLI / Cursor 等 stdio MCP harness")
+                Text("终端跑一次即可 · 支持 Claude Code / Codex / OpenCode / Gemini CLI 等 stdio MCP harness")
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
+            // 进程雷达:补录没接 MCP 的本机会话
+            HStack(spacing: 6) {
+                Toggle(isOn: Binding(
+                    get: { store.radarEnabled },
+                    set: { store.setRadar(enabled: $0) }
+                )) {
+                    Text("📡 进程雷达").font(.system(size: 10, weight: .bold))
+                }
+                .toggleStyle(.checkbox)
+                if store.radarEnabled {
+                    Text(store.radarCount > 0 ? "已补录 \(store.radarCount) 个未接入的会话" : "扫描本机 Agent 会话中…")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .help("每 30 秒扫描本机 harness 进程,把没装 MCP 考勤的会话补录入册。只读进程表和文件时间戳。")
         }
     }
 

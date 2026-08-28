@@ -12,7 +12,12 @@ export default function CheckinPage() {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Company[]>([]);
   const [searching, setSearching] = useState(false);
-  const [done, setDone] = useState<{ time: string; note: string | null } | null>(null);
+  const [done, setDone] = useState<{
+    time: string;
+    note: string | null;
+    rankCompany: number | null;
+    rankGlobal: number | null;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [showBackfill, setShowBackfill] = useState(false);
   const [bfDate, setBfDate] = useState("");
@@ -80,7 +85,12 @@ export default function CheckinPage() {
     const d = await r.json();
     setBusy(false);
     if (d.ok) {
-      setDone({ time: d.clocked_local, note: d.note });
+      setDone({
+        time: d.clocked_local,
+        note: d.note,
+        rankCompany: d.rank_company,
+        rankGlobal: d.rank_global,
+      });
       loadPulse();
     } else setError(d.error ?? "打卡失败,再试一次");
   }
@@ -95,10 +105,13 @@ export default function CheckinPage() {
             {company?.name} · {done.time}
           </p>
           {done.note && <p className="mt-2 text-sm font-bold opacity-70">{done.note}</p>}
-          {pulse && (
+          {done.rankCompany != null && (
             <p className="mt-3 text-sm font-bold">
-              🏃 你是今天第 {pulse.checked_out} 个下班的人
-              {pulse.still_working > 0 && `,还有 ${pulse.still_working} 人在岗`}
+              🏃 你是{company ? `「${company.name}」` : ""}今天第 {done.rankCompany} 个下班的
+              {done.rankGlobal != null && done.rankGlobal !== done.rankCompany
+                ? ` · 全网第 ${done.rankGlobal} 个`
+                : ""}
+              {pulse && pulse.still_working > 0 && `,还有 ${pulse.still_working} 人在岗`}
             </p>
           )}
           <p className="mt-4 text-sm font-bold opacity-70">

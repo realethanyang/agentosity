@@ -10,13 +10,14 @@ export async function POST(req: NextRequest) {
   const company = body?.company?.trim();
   if (!company) return NextResponse.json({ error: "缺少 company" }, { status: 400 });
 
-  // find-or-create 公司
+  // find-or-create 公司(大小写不敏感)
   const supa = db();
-  let { data: comp } = await supa
+  const { data: matches } = await supa
     .from("companies")
     .select("id")
-    .eq("name", company)
-    .maybeSingle();
+    .ilike("name", company.replace(/[%_]/g, "\\$&"))
+    .limit(1);
+  let comp = matches?.[0] ?? null;
   if (!comp) {
     const created = await supa
       .from("companies")

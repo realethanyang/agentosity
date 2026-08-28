@@ -28,6 +28,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/ethanyang/projects/agentosity/apps/menubar/Sources/RadarEngine.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"
         },
         {
@@ -39,7 +43,8 @@
       "moduleName" : "AgentosityBar",
       "moduleOutputPath" : "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/Modules/AgentosityBar.swiftmodule",
       "objects" : [
-        "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBarApp.swift.o"
+        "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBarApp.swift.o",
+        "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/RadarEngine.swift.o"
       ],
       "otherArguments" : [
         "-target",
@@ -59,7 +64,6 @@
         "-entry-point-function-name",
         "-Xfrontend",
         "AgentosityBar_main",
-        "-parse-as-library",
         "-swift-version",
         "5",
         "-plugin-path",
@@ -102,12 +106,17 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/RadarEngine.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/Modules/AgentosityBar.swiftmodule"
         }
       ],
       "prepareForIndexing" : false,
       "sources" : [
-        "/Users/ethanyang/projects/agentosity/apps/menubar/Sources/AgentosityBarApp.swift"
+        "/Users/ethanyang/projects/agentosity/apps/menubar/Sources/AgentosityBarApp.swift",
+        "/Users/ethanyang/projects/agentosity/apps/menubar/Sources/RadarEngine.swift"
       ],
       "tempsPath" : "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build",
       "wholeModuleOptimization" : true
@@ -125,6 +134,7 @@
       "menubar",
       "-c",
       "/Users/ethanyang/projects/agentosity/apps/menubar/Sources/AgentosityBarApp.swift",
+      "/Users/ethanyang/projects/agentosity/apps/menubar/Sources/RadarEngine.swift",
       "-I",
       "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/Modules",
       "-target",
@@ -144,7 +154,6 @@
       "-entry-point-function-name",
       "-Xfrontend",
       "AgentosityBar_main",
-      "-parse-as-library",
       "-swift-version",
       "5",
       "-plugin-path",
@@ -209,6 +218,10 @@
         {
           "kind" : "file",
           "name" : "/Users/ethanyang/projects/agentosity/apps/menubar/Sources/AgentosityBarApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ethanyang/projects/agentosity/apps/menubar/Sources/RadarEngine.swift"
         }
       ],
       "outputFilePath" : "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/sources"
@@ -223,6 +236,10 @@
         {
           "kind" : "file",
           "name" : "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/AgentosityBarApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.build/RadarEngine.swift.o"
         }
       ],
       "outputFilePath" : "/Users/ethanyang/projects/agentosity/apps/menubar/.build/arm64-apple-macosx/release/AgentosityBar.product/Objects.LinkFileList"
