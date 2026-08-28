@@ -8,3 +8,4 @@ dist/
 *.tsbuildinfo
 .vercel/
 .turbo/
+apps/menubar/dist/

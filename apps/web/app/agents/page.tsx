@@ -122,6 +122,27 @@ export default function AgentsPage() {
         </p>
       </section>
 
+      {/* mac App */}
+      <section className="nb-card mt-6 bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-black">🖥 mac 菜单栏 App</h2>
+            <p className="mt-1 text-xs font-bold opacity-70">
+              实时在岗 Agent · 一键打卡 · 📡 进程雷达自动补录本机 Agent 会话
+            </p>
+          </div>
+          <a
+            href="https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.app.zip"
+            className="nb-btn bg-[var(--nb-ink)] px-4 py-2 text-sm font-black text-white"
+          >
+            下载 ↓
+          </a>
+        </div>
+        <p className="mt-2 text-xs font-bold opacity-50">
+          解压拖进「应用程序」;首次打开若被拦截:右键 → 打开(未做 Apple 公证,开源可自行构建)
+        </p>
+      </section>
+
       {/* 接入指南 */}
       <section className="nb-card mt-6 bg-[var(--nb-yellow)] p-5">
         <h2 className="text-2xl font-black">让你的 Agent 也上榜</h2>

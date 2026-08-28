@@ -14,6 +14,10 @@ final class RadarEngine {
         var cwd: String?
         var activeSeconds: Int = 0
         var lastTickActive = false
+        // 活跃判定的记忆:子进程基线(会话自带的常驻子进程,如 MCP server)与 CPU 累计值
+        var baselineChildren: Set<Int32> = []
+        var baselineTaken = false
+        var lastCpuSeconds: Double = -1
     }
 
     private(set) var tracked: [Int32: Tracked] = [:]
@@ -70,10 +74,18 @@ final class RadarEngine {
             tracked[pid] = t
         }
 
+        // 同一会话目录被多个会话共享时,写盘信号分不清是谁写的 → 只对独占目录启用
+        var artifactCount: [String: Int] = [:]
+        for (_, t) in tracked {
+            if let a = sessionArtifact(harness: t.harness, cwd: t.cwd) {
+                artifactCount[a, default: 0] += 1
+            }
+        }
+
         // 心跳 + 活跃度
         for (pid, var t) in tracked {
             guard let sid = t.sessionId else { continue }
-            let active = isActive(pid: pid, harness: t.harness, cwd: t.cwd)
+            let active = isActive(pid: pid, t: &t, artifactCount: artifactCount)
             if active { t.activeSeconds += tickSeconds }
             t.lastTickActive = active
             tracked[pid] = t
@@ -98,19 +110,47 @@ final class RadarEngine {
 
     // MARK: - 活跃度信号
 
-    private func isActive(pid: Int32, harness: String, cwd: String?) -> Bool {
-        // 信号 1:会话文件最近 90 秒有写入
-        if let dir = sessionArtifact(harness: harness, cwd: cwd) {
-            if let mtime = newestMtime(at: dir), Date().timeIntervalSince(mtime) < 90 {
-                return true
+    private func isActive(pid: Int32, t: inout Tracked, artifactCount: [String: Int]) -> Bool {
+        var active = false
+
+        // 信号 1:进程 CPU 累计值有实质增长(推理流式解析/渲染会烧 CPU,干等不会)
+        let cpu = cpuSecondsOf(pid: pid)
+        if t.lastCpuSeconds >= 0, cpu - t.lastCpuSeconds > 1.0 {
+            active = true
+        }
+        t.lastCpuSeconds = cpu
+
+        // 信号 2:出现了"基线之外"的新子进程(= 工具调用在跑)。
+        // 基线 = 首次观测时的常驻子进程(MCP server 等),它们一直在,不代表在干活。
+        let children = Set(pgrepChildren(of: pid))
+        if !t.baselineTaken {
+            t.baselineChildren = children
+            t.baselineTaken = true
+        } else {
+            t.baselineChildren.formIntersection(children) // 死掉的移出基线
+            if !children.subtracting(t.baselineChildren).isEmpty {
+                active = true
             }
         }
-        // 信号 2:有非考勤的子进程在跑(长工具调用)
-        let children = pgrepChildren(of: pid)
-        for c in children where !commandOf(pid: c).contains("agentosity") {
-            return true
+
+        // 信号 3:会话文件最近 90 秒有写入 —— 仅当该目录只有这一个会话在用(否则分不清是谁写的)
+        if !active, let dir = sessionArtifact(harness: t.harness, cwd: t.cwd), artifactCount[dir] == 1 {
+            if let mtime = newestMtime(at: dir), Date().timeIntervalSince(mtime) < 90 {
+                active = true
+            }
         }
-        return false
+        return active
+    }
+
+    /** 进程累计 CPU 秒("mm:ss.cc" / "hh:mm:ss" 格式) */
+    private func cpuSecondsOf(pid: Int32) -> Double {
+        let raw = run("/bin/ps", ["-o", "time=", "-p", String(pid)])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = raw.split(separator: ":").compactMap { Double($0) }
+        guard !parts.isEmpty else { return 0 }
+        return parts.reversed().enumerated().reduce(0) { acc, e in
+            acc + e.element * pow(60, Double(e.offset))
+        }
     }
 
     /** 各 harness 的会话痕迹位置(文件或目录) */

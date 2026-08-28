@@ -70,6 +70,7 @@ export function createProbe(harness, processStartMs) {
     tail: target?.tail ?? false,
     lastMtimeMs: 0,
     lastWriteAt: 0,
+    baselineChildren: null, // harness 的常驻子进程基线(其他 MCP server 等),它们在 ≠ 在干活
   };
 
   function bindFile() {
@@ -149,18 +150,30 @@ export function createProbe(harness, processStartMs) {
     }
   }
 
-  /** 信号 3:harness(父进程)有除本进程外的子进程在跑(长工具调用) */
+  /** 信号 3:harness(父进程)出现了基线之外的新子进程(= 工具调用在跑)。
+   *  基线 = 探针启动时已存在的子进程(自己和其他常驻 MCP server),它们一直在,不代表在干活。 */
   function childActive() {
     try {
       const out = execFileSync("pgrep", ["-P", String(process.ppid)], {
         encoding: "utf8",
         timeout: 3000,
       });
-      const others = out
-        .split("\n")
-        .map((s) => parseInt(s, 10))
-        .filter((pid) => pid && pid !== process.pid);
-      return others.length > 0;
+      const current = new Set(
+        out
+          .split("\n")
+          .map((s) => parseInt(s, 10))
+          .filter((pid) => pid && pid !== process.pid)
+      );
+      if (state.baselineChildren === null) {
+        state.baselineChildren = current;
+        return false;
+      }
+      // 死掉的移出基线;有基线外的新面孔才算干活
+      state.baselineChildren = new Set([...state.baselineChildren].filter((p) => current.has(p)));
+      for (const p of current) {
+        if (!state.baselineChildren.has(p)) return true;
+      }
+      return false;
     } catch {
       return false; // pgrep 无匹配时 exit 1,也走这里 → 视为无子进程
     }
