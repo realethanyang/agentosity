@@ -35,6 +35,7 @@ export default function LeaderboardPage() {
   const [period, setPeriod] = useState<{ from: string; to: string; days: number } | null>(null);
   const [days, setDays] = useState<7 | 30>(7);
   const [mode, setMode] = useState<"sum" | "avg">("sum");
+  const [sortBy, setSortBy] = useState<"hours" | "score">("hours");
   const [humanBoard, setHumanBoard] = useState<Board | null>(null);
   const [tag, setTag] = useState<{ type: string; value: string } | null>(null);
 
@@ -51,6 +52,14 @@ export default function LeaderboardPage() {
   }, [days]);
 
   const hoursOf = (h: number) => (mode === "sum" ? h : Math.round((h / days) * 10) / 10);
+
+  const sortedBoard = agentBoard
+    ? [...agentBoard].sort((a, b) =>
+        sortBy === "hours"
+          ? b.active_hours - a.active_hours
+          : (agentosityScore(b.leverage) ?? -1) - (agentosityScore(a.leverage) ?? -1)
+      )
+    : null;
 
   useEffect(() => {
     const q = tag ? `?tag_type=${tag.type}&tag=${encodeURIComponent(tag.value)}` : "";
@@ -80,6 +89,18 @@ export default function LeaderboardPage() {
             <span className="text-xs font-bold opacity-60">
               {period ? `${period.from} ~ ${period.to}` : ""}
             </span>
+          </div>
+          {/* 排序切换 */}
+          <div className="mt-2 flex flex-wrap items-center gap-1 text-xs font-extrabold">
+            <span className="opacity-50">排序:</span>
+            <button onClick={() => setSortBy("hours")}
+              className={`nb-btn px-2 py-0.5 ${sortBy === "hours" ? "bg-[var(--nb-ink)] text-white" : "bg-white"}`}>
+              agent-hours
+            </button>
+            <button onClick={() => setSortBy("score")}
+              className={`nb-btn px-2 py-0.5 ${sortBy === "score" ? "bg-[var(--nb-ink)] text-white" : "bg-white"}`}>
+              Agentosity 指数
+            </button>
           </div>
           {/* 口径切换 */}
           <div className="mt-2 flex flex-wrap gap-1 text-xs font-extrabold">
@@ -118,7 +139,7 @@ export default function LeaderboardPage() {
                 </tr>
               </thead>
               <tbody className="font-bold">
-                {agentBoard.slice(0, 20).map((r, i) => (
+                {(sortedBoard ?? []).slice(0, 20).map((r, i) => (
                   <tr key={r.name} className="border-b border-dashed border-black/20">
                     <td className="py-2 font-black">{i + 1}</td>
                     <td>{r.name}</td>
