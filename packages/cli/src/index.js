@@ -25,10 +25,9 @@ export async function main(argv) {
     default:
       console.log(`agentosity — AI-native is a number now.
 
-两步开始:
-  npx agentosity login                   # 1. 弹浏览器登录
-  npx agentosity init "<公司名>"          # 2. 绑定公司 + 自动接入所有 harness
-  (无浏览器环境:login <邮箱> 收验证码,再 login <邮箱> <验证码>)
+一步开始:
+  npx agentosity init             登录 → 网页选公司 → 自动接入所有 harness,全程引导
+  (无浏览器环境:login <邮箱> 收验证码登录后,init "<公司名>")
 
 其他:
   npx agentosity radar            进程雷达:补录本机未接入 MCP 的 Agent 会话(常驻)
@@ -39,38 +38,52 @@ export async function main(argv) {
   }
 }
 
-async function init(company) {
-  const pre = loadConfig();
-  if (!pre.accessToken) {
-    console.error(`Agentosity 需要登录使用:
-  npx agentosity login <邮箱>            # 收验证码
-  npx agentosity login <邮箱> <验证码>    # 登录
-然后再跑 init。`);
+async function init(companyArg) {
+  // 防占位符事故:范例文本被原样粘贴执行
+  if (companyArg && /你的公司名|公司名|your ?company|company ?name/i.test(companyArg)) {
+    console.error("「" + companyArg + "」看起来是示例占位符,不是真实公司名。直接跑 npx agentosity init(不带参数),公司在网页上选。");
     process.exit(1);
   }
-  if (!company) {
-    console.error('用法:npx agentosity init "你的公司名"');
-    process.exit(1);
-  }
-  saveConfig({ company });
 
-  // 服务端绑定公司(唯一真相;改绑每周一次)
-  const created = await post("/api/companies", { name: company });
-  if (created?.id) {
-    const bind = await post("/api/profile", { companyId: created.id }, { method: "PUT" });
-    if (bind?.error) console.log(`⚠️ ${bind.error}(本地归属仍按「${company}」记)`);
-    else console.log(`✅ 公司已绑定:${created.name ?? company}`);
+  // 1. 登录(没有就当场走浏览器授权)
+  let cfg = loadConfig();
+  if (!cfg.accessToken) {
+    await browserLogin(); // 失败会自行退出
+    cfg = loadConfig();
   } else {
-    console.log(`⚠️ 公司绑定暂未同步(网络?),本地归属按「${company}」记`);
+    console.log(`✓ 已登录 ${cfg.email ?? ""}`);
   }
 
-  // 全家 harness 自动接入
+  // 2. 公司绑定(统一收口网页;--company 仅供无浏览器环境)
+  let prof = await get(`/api/profile?device=${cfg.deviceId ?? ""}`);
+  if (!prof?.company && companyArg) {
+    const created = await post("/api/companies", { name: companyArg });
+    if (created?.id) await post("/api/profile", { companyId: created.id }, { method: "PUT" });
+    prof = await get(`/api/profile?device=${cfg.deviceId ?? ""}`);
+  }
+  if (!prof?.company) {
+    const url = `${apiBase()}/checkin`;
+    console.log(`在网页上选择你的公司…\n打不开就手动访问:${url}`);
+    await openBrowser(url);
+    for (let i = 0; i < 150 && !prof?.company; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      prof = await get(`/api/profile?device=${cfg.deviceId ?? ""}`);
+    }
+    if (!prof?.company) {
+      console.error("等待超时。在网页上绑定公司后,重新跑 npx agentosity init");
+      process.exit(1);
+    }
+  }
+  console.log(`✓ 公司:${prof.company.name}`);
+  saveConfig({ company: prof.company.name }); // 本地缓存,考勤/雷达归属用
+
+  // 3. 全家 harness 自动接入
   console.log("\n接入 Agent 考勤:");
   const results = installAllHarnesses();
   console.log(formatInstallResults(results) || "  (未发现已安装的 harness)");
 
   console.log(`
-从现在起,新开的 Agent 会话会自动考勤——模型零参与,只上报时长,不读任何内容。
+✅ 完成。从现在起,新开的 Agent 会话会自动考勤——模型零参与,只上报时长,不读任何内容。
 已开着的老会话不会被追踪(配置只对新会话生效),要收编它们:npx agentosity radar
 
 看榜:${apiBase()}/agents`);
@@ -99,6 +112,18 @@ async function login(email, code) {
   }
 }
 
+async function openBrowser(url) {
+  try {
+    const { spawn } = await import("node:child_process");
+    const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+    const child = spawn(opener, [url], { stdio: "ignore", detached: true, shell: process.platform === "win32" });
+    child.on("error", () => {});
+    child.unref();
+  } catch {
+    /* 打不开浏览器就靠打印的 URL */
+  }
+}
+
 async function browserLogin() {
   const cfg = saveConfig({}); // 确保 deviceId 存在
   const start = await post("/api/device/start", {});
@@ -108,15 +133,7 @@ async function browserLogin() {
   }
   const url = `${apiBase()}/login?device=${start.code}`;
   console.log(`在浏览器里完成登录…\n打不开就手动访问:${url}`);
-  try {
-    const { spawn } = await import("node:child_process");
-    const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
-    const child = spawn(opener, [url], { stdio: "ignore", detached: true, shell: process.platform === "win32" });
-    child.on("error", () => {});
-    child.unref();
-  } catch {
-    /* 打不开浏览器就靠上面打印的 URL */
-  }
+  await openBrowser(url);
   for (let i = 0; i < 150; i++) {
     await new Promise((r) => setTimeout(r, 2000));
     const poll = await post(`/api/device/poll?code=${start.code}`, undefined, { method: "GET" });

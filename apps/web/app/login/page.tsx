@@ -12,9 +12,15 @@ export default function LoginPage() {
 
   useEffect(() => {
     // 不信任本地存的登录态:校验/续期通过才算已登录(过期又无法续期会被清掉)
-    freshAuthHeaders().then((h) => {
-      if (h.Authorization) setStage("done");
+    const code = new URLSearchParams(window.location.search).get("device");
+    freshAuthHeaders().then(async (h) => {
+      if (h.Authorization) {
+        setStage("done");
+        // 已登录 + 带设备码 → 自动授权,不再要求点击
+        if (code) await approveWith(h, code);
+      }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,20 +42,11 @@ export default function LoginPage() {
     return msg;
   }
 
-  async function approveDevice(token?: string) {
-    if (!deviceCode) return;
-    const headers: Record<string, string> = token
-      ? { Authorization: `Bearer ${token}` }
-      : await freshAuthHeaders(); // 已登录场景:用校验/续期过的 token,不用本地可能过期的
-    if (!headers.Authorization) {
-      setStage("email");
-      setError("登录态已过期,重新登录一次再授权");
-      return;
-    }
+  async function approveWith(headers: Record<string, string>, code: string) {
     const r = await fetch("/api/device/approve", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...headers },
-      body: JSON.stringify({ code: deviceCode }),
+      body: JSON.stringify({ code }),
     });
     const d = await r.json();
     if (d.ok) setDeviceApproved(true);
@@ -83,7 +80,7 @@ export default function LoginPage() {
     if (d.ok) {
       saveAuth({ email: d.email, token: d.access_token, refresh: d.refresh_token });
       setStage("done");
-      if (deviceCode) await approveDevice(d.access_token);
+      if (deviceCode) await approveWith({ Authorization: `Bearer ${d.access_token}` }, deviceCode);
     } else setError(friendly(d.error ?? "验证失败"));
   }
 
@@ -99,16 +96,11 @@ export default function LoginPage() {
             这台设备的打卡历史已合并进账号,换设备登录同一邮箱即可同步。
           </p>
         </div>
-        {deviceCode && !deviceApproved && (
-          <button
-            onClick={() => approveDevice()}
-            className="nb-btn mt-6 bg-[var(--nb-blue)] px-6 py-3 font-black text-white"
-          >
-            授权菜单栏 App 使用此账号 →
-          </button>
+        {deviceCode && !deviceApproved && !error && (
+          <p className="mt-6 font-bold opacity-60">正在授权你的设备…</p>
         )}
         {deviceApproved && (
-          <p className="mt-6 text-lg font-black">🎉 菜单栏 App 已登录,回到它看看吧(本页可关闭)</p>
+          <p className="mt-6 text-lg font-black">🎉 已自动授权,回到终端 / App 看看吧(本页可关闭)</p>
         )}
         {next && (
           <Link href={next} className="nb-btn mt-6 inline-block bg-[var(--nb-pink)] px-6 py-3 font-black text-white">

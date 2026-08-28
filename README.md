@@ -16,8 +16,7 @@
 **全平台(终端)**:
 
 ```bash
-npx agentosity login              # 1. 弹浏览器登录(SSH 环境:login <邮箱> 走验证码)
-npx agentosity init "你的公司名"   # 2. 自动接入 Claude Code / Codex / Gemini / Cursor / Windsurf / OpenCode
+npx agentosity init   # 一条命令:登录 → 网页选公司 → 自动接入六家 harness,全程引导
 
 npx agentosity radar      # 可选:进程雷达,收编已开着的会话(常驻)
 npx agentosity status     # 看榜 + 你的 Agent 今日战报
