@@ -31,6 +31,14 @@ DEV_ID="Developer ID Application: Ethan Yang (UTR5A48B54)"
 if security find-identity -p codesigning -v 2>/dev/null | grep -q "$DEV_ID"; then
   codesign --force --options runtime --timestamp --sign "$DEV_ID" "$APP"
   echo "signed: Developer ID"
+  # --notarize:上传 Apple 公证 + 钉票(凭证在钥匙串 profile agentosity-notary)
+  if [ "${1:-}" = "--notarize" ]; then
+    ditto -c -k --keepParent "$APP" "$APP.zip"
+    xcrun notarytool submit "$APP.zip" --keychain-profile agentosity-notary --wait
+    xcrun stapler staple "$APP"
+    ditto -c -k --keepParent "$APP" "$APP.zip"  # 重打包含票版本
+    echo "notarized + stapled: $APP.zip"
+  fi
 else
   codesign --force --sign - "$APP" 2>/dev/null || true
   echo "signed: ad-hoc"
