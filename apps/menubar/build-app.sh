@@ -26,5 +26,13 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-codesign --force --sign - "$APP" 2>/dev/null || true
+# 有 Developer ID 证书就正式签名(硬化运行时 + 时间戳,公证的前提),否则 ad-hoc
+DEV_ID="Developer ID Application: Ethan Yang (UTR5A48B54)"
+if security find-identity -p codesigning -v 2>/dev/null | grep -q "$DEV_ID"; then
+  codesign --force --options runtime --timestamp --sign "$DEV_ID" "$APP"
+  echo "signed: Developer ID"
+else
+  codesign --force --sign - "$APP" 2>/dev/null || true
+  echo "signed: ad-hoc"
+fi
 echo "✅ built: apps/menubar/$APP"

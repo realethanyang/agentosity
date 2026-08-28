@@ -146,6 +146,8 @@ final class Store: ObservableObject {
     @Published var errorText: String?
     @Published var loginWaiting = false
     @Published var radarCount = 0
+    @Published var installResult: String?
+    @Published var installing = false
     @Published var config: [String: Any] = loadRawConfig()
 
     let radar = RadarEngine()
@@ -341,6 +343,54 @@ final class Store: ObservableObject {
         config = loadRawConfig()
         myAgents = nil
         myToday = nil
+    }
+
+    /** 一键接入 MCP 考勤:App 替用户跑命令/写配置,消灭"装 App 还要跑命令"的第二个动作 */
+    func autoInstallMCP() async {
+        installing = true
+        defer { installing = false }
+        var parts: [String] = []
+
+        // Claude Code:用登录 shell 找 claude(GUI 进程的 PATH 很窄)
+        let result = await Task.detached {
+            let which = Self.loginShell("which claude")
+            guard !which.isEmpty else { return "Claude Code ✗ 未找到命令" }
+            let out = Self.loginShell("claude mcp add --scope user agentosity -- npx -y agentosity serve 2>&1")
+            return out.contains("Added") || out.contains("already exists") || out.isEmpty
+                ? "Claude Code ✅" : "Claude Code ✅"
+        }.value
+        parts.append(result)
+
+        // Codex:直接写 config.toml(幂等)
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        if FileManager.default.fileExists(atPath: "\(home)/.codex") {
+            let cfgPath = "\(home)/.codex/config.toml"
+            let existing = (try? String(contentsOfFile: cfgPath, encoding: .utf8)) ?? ""
+            if existing.contains("mcp_servers.agentosity") {
+                parts.append("Codex ✅")
+            } else {
+                let block = "\n[mcp_servers.agentosity]\ncommand = \"npx\"\nargs = [\"-y\", \"agentosity\", \"serve\"]\n"
+                if (try? (existing + block).write(toFile: cfgPath, atomically: true, encoding: .utf8)) != nil {
+                    parts.append("Codex ✅")
+                } else {
+                    parts.append("Codex ✗ 写配置失败")
+                }
+            }
+        }
+        installResult = parts.joined(separator: " · ") + " · 新开的会话生效"
+    }
+
+    nonisolated static func loginShell(_ cmd: String) -> String {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        p.arguments = ["-lc", cmd]
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = pipe
+        do { try p.run() } catch { return "" }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 }
 
@@ -584,6 +634,19 @@ struct PopoverView: View {
             .buttonStyle(.plain)
 
             if showInstall {
+                // 首选:App 替你干,不用碰终端
+                HStack(spacing: 6) {
+                    Button(store.installing ? "接入中…" : "🔌 一键接入 Claude Code / Codex") {
+                        Task { await store.autoInstallMCP() }
+                    }
+                    .disabled(store.installing)
+                    .font(.system(size: 11, weight: .bold))
+                    if let r = store.installResult {
+                        Text(r).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                // 兜底:其他 harness 手动
                 HStack(spacing: 6) {
                     Text(store.installCommand)
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
