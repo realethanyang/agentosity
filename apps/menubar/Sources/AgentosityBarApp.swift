@@ -97,6 +97,8 @@ func jwtExpMs(_ token: String) -> Double {
     return exp * 1000
 }
 
+let APP_VERSION = "0.3.0"
+
 // MARK: - 品牌色
 
 enum Brand {
@@ -148,7 +150,20 @@ final class Store: ObservableObject {
     @Published var radarCount = 0
     @Published var installResult: String?
     @Published var installing = false
+    @Published var updateURL: String?
     @Published var config: [String: Any] = loadRawConfig()
+
+    /** 每次启动查一次 GitHub 最新版(App 是手动分发,给个升级提示) */
+    func checkUpdate() async {
+        guard let url = URL(string: "https://api.github.com/repos/realethanyang/agentosity/releases/latest"),
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let tag = obj["tag_name"] as? String
+        else { return }
+        if tag != "v\(APP_VERSION)" {
+            updateURL = "https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.app.zip"
+        }
+    }
 
     let radar = RadarEngine()
     private var backgroundStarted = false
@@ -164,6 +179,7 @@ final class Store: ObservableObject {
         radar.deviceId = { [weak self] in self?.deviceId }
         radar.accessToken = { [weak self] in self?.accessToken }
         Task { [weak self] in
+            await self?.checkUpdate()
             while true {
                 guard let self else { return }
                 await self.refresh()
@@ -677,6 +693,15 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack(spacing: 12) {
+            if let u = store.updateURL {
+                Button("⬆️ 新版本") {
+                    if let url = URL(string: u) { openURL(url) }
+                }
+                .font(.system(size: 10, weight: .bold))
+                .buttonStyle(.plain)
+                .foregroundStyle(.orange)
+                .help("有新版本可用,点击下载")
+            }
             Button("看榜 ↗") {
                 if let url = URL(string: "\(store.apiBase)/agents") { openURL(url) }
             }

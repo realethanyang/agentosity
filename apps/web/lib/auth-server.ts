@@ -29,3 +29,18 @@ export async function userTokenFromRequest(req: Request): Promise<string | null>
   if (error || !data.user) return null;
   return `user:${data.user.id}`;
 }
+
+/**
+ * 区分"没带 token"和"带了但校验失败"(网络抖动/Supabase 瞬时失败):
+ * 后者不应静默降级成设备身份——那会让客户端拿到另一个人的(空)数据。
+ */
+export async function authFromRequest(
+  req: Request
+): Promise<{ userToken: string | null; provided: boolean }> {
+  const auth = req.headers.get("authorization");
+  const jwt = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+  if (!jwt) return { userToken: null, provided: false };
+  const { data, error } = await db().auth.getUser(jwt);
+  if (error || !data.user) return { userToken: null, provided: true };
+  return { userToken: `user:${data.user.id}`, provided: true };
+}

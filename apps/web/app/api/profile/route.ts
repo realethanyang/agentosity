@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
-import { userTokenFromRequest } from "@/lib/auth-server";
+import { userTokenFromRequest, authFromRequest } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
 const CHANGE_INTERVAL_MS = 7 * 24 * 3600 * 1000; // 改绑限频:每周一次
 
-async function tokenOf(req: NextRequest): Promise<string | null> {
-  const device = new URL(req.url).searchParams.get("device");
-  return (await userTokenFromRequest(req)) ?? device;
-}
-
 export async function GET(req: NextRequest) {
-  const token = await tokenOf(req);
+  const { userToken, provided } = await authFromRequest(req);
+  // 带了 token 但校验失败 → 明确报 401,绝不静默降级成设备身份(会拿到错误的空数据)
+  if (provided && !userToken) {
+    return NextResponse.json({ error: "登录态校验失败,稍后重试" }, { status: 401 });
+  }
+  const device = new URL(req.url).searchParams.get("device");
+  const token = userToken ?? device;
   if (!token) return NextResponse.json({ error: "缺少身份" }, { status: 400 });
 
   const { data, error } = await db()

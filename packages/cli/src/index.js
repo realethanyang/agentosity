@@ -55,7 +55,20 @@ async function init(companyArg) {
   }
 
   // 2. 公司绑定(统一收口网页;--company 仅供无浏览器环境)
-  let prof = await get(`/api/profile?device=${cfg.deviceId ?? ""}`);
+  // 拿"明确答复"才做判断:网络抖动/服务瞬时失败(返回 error)一律重试,绝不误判成"未绑定"
+  const fetchProfileDefinitive = async (attempts = 5) => {
+    for (let i = 0; i < attempts; i++) {
+      const p = await get(`/api/profile?device=${cfg.deviceId ?? ""}`);
+      if (p && "company" in p) return p;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    return null;
+  };
+  let prof = await fetchProfileDefinitive();
+  if (prof === null) {
+    console.error("服务暂时不可达,稍后重跑 npx agentosity init");
+    process.exit(1);
+  }
   if (!prof?.company && companyArg) {
     const created = await post("/api/companies", { name: companyArg });
     if (created?.id) await post("/api/profile", { companyId: created.id }, { method: "PUT" });
@@ -67,7 +80,8 @@ async function init(companyArg) {
     await openBrowser(url);
     for (let i = 0; i < 150 && !prof?.company; i++) {
       await new Promise((r) => setTimeout(r, 2000));
-      prof = await get(`/api/profile?device=${cfg.deviceId ?? ""}`);
+      const p = await get(`/api/profile?device=${cfg.deviceId ?? ""}`);
+      if (p && "company" in p) prof = p; // 错误答复不覆盖,继续等
     }
     if (!prof?.company) {
       console.error("等待超时。在网页上绑定公司后,重新跑 npx agentosity init");
