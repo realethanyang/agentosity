@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { shanghaiNow, todayKey } from "@/lib/time";
+import { userTokenFromRequest } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,8 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const { companyId, deviceId, backfill } = body ?? {};
-  if (!companyId || !deviceId) {
+  const userToken = (await userTokenFromRequest(req)) ?? deviceId;
+  if (!companyId || !userToken) {
     return NextResponse.json({ error: "缺少 companyId / deviceId" }, { status: 400 });
   }
 
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
   const { error } = await db().from("checkins").upsert(
     {
       company_id: companyId,
-      user_token: deviceId,
+      user_token: userToken,
       clocked_at: clockedAt.toISOString(),
       day_key: dayKey,
       backfill: isBackfill,

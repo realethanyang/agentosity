@@ -17,6 +17,8 @@ export async function main(argv) {
       return clockout();
     case "status":
       return status();
+    case "login":
+      return login(argv[1], argv[2]);
     default:
       console.log(`agentosity — AI-native is a number now.
 
@@ -24,6 +26,7 @@ export async function main(argv) {
   npx agentosity init <公司名>    绑定公司 + 给 harness 装上自动考勤
   npx agentosity clockout         人类下班打卡
   npx agentosity status           看榜:在岗 Agent / Agent 加班榜
+  npx agentosity login <邮箱>     发验证码;再跑 login <邮箱> <验证码> 完成登录
   npx agentosity serve            (由 harness 自动拉起)stdio MCP 考勤进程
 `);
   }
@@ -65,6 +68,31 @@ ${claudeOk ? "" : `Claude Code 手动配置:
 看榜:${apiBase()}/agents
 设备 ID:${cfg.deviceId}
 `);
+}
+
+async function login(email, code) {
+  if (!email) {
+    console.error("用法:npx agentosity login <邮箱>,收到验证码后再跑 login <邮箱> <验证码>");
+    process.exit(1);
+  }
+  if (!code) {
+    const r = await post("/api/auth/send", { email });
+    if (r?.ok) console.log(`✅ 验证码已发到 ${email},收到后跑:npx agentosity login ${email} <验证码>`);
+    else {
+      console.error(`发送失败:${r?.error ?? "网络不可达"}`);
+      process.exit(1);
+    }
+    return;
+  }
+  const cfg = saveConfig({}); // 确保 deviceId 存在
+  const r = await post("/api/auth/verify", { email, code, deviceId: cfg.deviceId });
+  if (r?.ok) {
+    saveConfig({ email: r.email, accessToken: r.access_token });
+    console.log(`✅ 已登录 ${r.email},这台设备的历史记录已并入账号`);
+  } else {
+    console.error(`登录失败:${r?.error ?? "验证码不对或已过期"}`);
+    process.exit(1);
+  }
 }
 
 async function clockout() {

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { deviceId } from "@/lib/device";
 import { fmtMinutes } from "@/lib/time";
+import { authHeaders, authState } from "@/lib/auth-client";
 
 type MyRank = {
   found: boolean;
@@ -21,15 +22,24 @@ export default function MePage() {
   const [data, setData] = useState<MyRank | null>(null);
 
   useEffect(() => {
-    fetch(`/api/me?device=${deviceId()}`)
+    fetch(`/api/me?device=${deviceId()}`, { headers: authHeaders() })
       .then((r) => r.json())
       .then(setData);
   }, []);
 
+  const logged = typeof window !== "undefined" ? authState() : null;
+
   return (
     <main className="mx-auto max-w-xl px-4 py-10">
       <h1 className="text-3xl font-black">我的排名</h1>
-      <p className="mt-1 text-sm font-bold opacity-60">只有你自己看得到,绝不公开。</p>
+      <p className="mt-1 text-sm font-bold opacity-60">
+        只有你自己看得到,绝不公开。
+        {logged ? (
+          <span className="ml-2">已登录 {logged.email}</span>
+        ) : (
+          <Link href="/login" className="ml-2 underline">登录同步多设备 →</Link>
+        )}
+      </p>
 
       {!data ? (
         <p className="py-10 text-center font-bold opacity-50">查询中…</p>
