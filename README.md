@@ -59,4 +59,4 @@ pnpm dev                       # web @ localhost:3000
 apps/menubar/build-app.sh      # 打包 menu bar app
 ```
 
-License: MIT
+License:客户端(CLI / menu bar App)MIT · 服务端(web / supabase)AGPL-3.0,详见 [LICENSE.md](LICENSE.md) · 贡献请读 [CONTRIBUTING.md](CONTRIBUTING.md)

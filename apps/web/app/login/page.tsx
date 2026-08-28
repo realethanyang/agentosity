@@ -11,8 +11,31 @@ export default function LoginPage() {
   const [stage, setStage] = useState<"email" | "code" | "done">("email");
 
   useEffect(() => {
-    // 不信任本地存的登录态:校验/续期通过才算已登录(过期又无法续期会被清掉)
     const code = new URLSearchParams(window.location.search).get("device");
+
+    // Google OAuth 回跳:token 在 URL hash 里
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const oauthToken = hash.get("access_token");
+    const oauthRefresh = hash.get("refresh_token");
+    if (oauthToken) {
+      let mail = "";
+      try {
+        mail = JSON.parse(atob(oauthToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).email ?? "";
+      } catch { /* email 解析失败不致命 */ }
+      saveAuth({ email: mail, token: oauthToken, refresh: oauthRefresh ?? undefined });
+      history.replaceState(null, "", window.location.pathname + window.location.search); // 清掉 hash
+      // 设备历史并入账号
+      fetch("/api/auth/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${oauthToken}` },
+        body: JSON.stringify({ deviceId: deviceId() }),
+      }).catch(() => {});
+      setStage("done");
+      if (code) approveWith({ Authorization: `Bearer ${oauthToken}` }, code);
+      return;
+    }
+
+    // 不信任本地存的登录态:校验/续期通过才算已登录(过期又无法续期会被清掉)
     freshAuthHeaders().then(async (h) => {
       if (h.Authorization) {
         setStage("done");
@@ -22,6 +45,11 @@ export default function LoginPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function googleLogin() {
+    const redirect = `${window.location.origin}/login${deviceCode ? `?device=${deviceCode}` : ""}`;
+    window.location.href = `https://phkifnntpacovtwiwhrp.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirect)}`;
+  }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deviceCode, setDeviceCode] = useState<string | null>(null);
@@ -129,6 +157,15 @@ export default function LoginPage() {
       <div className="nb-card mt-6 bg-white p-5">
         {stage === "email" ? (
           <>
+            <button
+              onClick={googleLogin}
+              className="nb-btn flex w-full items-center justify-center gap-2 bg-white py-3 font-black"
+            >
+              <span className="text-lg">G</span> 用 Google 登录
+            </button>
+            <div className="my-4 flex items-center gap-3 text-xs font-bold opacity-40">
+              <div className="h-0.5 flex-1 bg-black/20" />或用邮箱验证码<div className="h-0.5 flex-1 bg-black/20" />
+            </div>
             <label className="text-sm font-extrabold">邮箱</label>
             <input
               type="email"
