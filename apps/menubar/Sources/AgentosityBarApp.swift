@@ -430,8 +430,9 @@ struct PopoverView: View {
                 Spacer()
                 Button("刷新") { Task { await store.refresh() } }
                     .font(.system(size: 11))
-                Button("退出") { NSApplication.shared.terminate(nil) }
+                Button("退出 App") { NSApplication.shared.terminate(nil) }
                     .font(.system(size: 11))
+                    .help("关闭菜单栏应用(不是退出登录)。重新打开:启动台或 Spotlight 搜 Agentosity")
             }
         }
         .padding(14)
