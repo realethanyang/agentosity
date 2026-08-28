@@ -9,5 +9,11 @@
   "files": ["bin", "src"],
   "engines": { "node": ">=18" },
   "keywords": ["mcp", "agent", "agent-hours", "claude-code", "codex", "xiabanbang"],
+  "homepage": "https://agentosity.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/realethanyang/agentosity.git",
+    "directory": "packages/cli"
+  },
   "license": "MIT"
 }
