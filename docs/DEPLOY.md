@@ -1,5 +1,30 @@
 # 部署手册
 
+## 双站架构(正式 / demo)
+
+同一套代码、同一个 Supabase,两个 Postgres schema 两个 Vercel 项目:
+
+| 站点 | Vercel 项目 | 数据 schema | 数据 |
+|---|---|---|---|
+| agentosity.com | `agentosity` | `public`(DATA_SCHEMA 未设) | 真实用户,干净 |
+| demo.agentosity.com | `agentosity-demo` | `demo`(env DATA_SCHEMA=demo) | seed 模拟数据 |
+
+发布方式(CLI 在 apps/web 目录,用 link 切换项目):
+
+```bash
+cd apps/web
+vercel link --yes --project agentosity --scope realethanyanggmailcoms-projects && vercel deploy --prod --yes
+vercel link --yes --project agentosity-demo --scope realethanyanggmailcoms-projects && vercel deploy --prod --yes
+```
+
+demo 数据刷新(注意 search_path 指向 demo):
+
+```bash
+PGPASSWORD=$DB_PASS PGOPTIONS="-c search_path=demo,public" psql \
+  "host=aws-0-ap-southeast-1.pooler.supabase.com port=5432 dbname=postgres user=postgres.phkifnntpacovtwiwhrp sslmode=require" \
+  -f supabase/refresh_live.sql
+```
+
 ## Vercel(apps/web)
 
 1. vercel.com 用 GitHub(realethanyang)登录 → **Add New… → Project** → Import `realethanyang/agentosity`
