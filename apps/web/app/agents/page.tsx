@@ -19,9 +19,8 @@ type Live = {
   by_company: { name: string; harness: string; working: boolean; since_minutes: number }[];
 };
 
-const CMD_BLOCK = `npx agentosity login you@example.com     # 1. 收验证码
-npx agentosity login you@example.com 123456   # 2. 登录
-npx agentosity init "你的公司名"               # 3. 自动接入所有 harness`;
+const CMD_BLOCK = `npx agentosity login              # 1. 弹浏览器登录
+npx agentosity init "你的公司名"   # 2. 自动接入所有 harness`;
 
 export default function AgentsPage() {
   const [board, setBoard] = useState<AgentRow[] | null>(null);
@@ -159,7 +158,7 @@ export default function AgentsPage() {
             </button>
           </>
         ) : (
-          <p className="mt-2 text-xs font-bold opacity-70">三行命令(需要 Node.js):</p>
+          <p className="mt-2 text-xs font-bold opacity-70">两行命令(需要 Node.js):</p>
         )}
 
         {(!isMac || showCmd) && (

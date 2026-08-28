@@ -25,10 +25,10 @@ export async function main(argv) {
     default:
       console.log(`agentosity — AI-native is a number now.
 
-三步开始(需登录):
-  npx agentosity login <邮箱>            # 1. 发验证码
-  npx agentosity login <邮箱> <验证码>    # 2. 登录
-  npx agentosity init "<公司名>"          # 3. 绑定公司 + 自动接入所有 harness
+两步开始:
+  npx agentosity login                   # 1. 弹浏览器登录
+  npx agentosity init "<公司名>"          # 2. 绑定公司 + 自动接入所有 harness
+  (无浏览器环境:login <邮箱> 收验证码,再 login <邮箱> <验证码>)
 
 其他:
   npx agentosity radar            进程雷达:补录本机未接入 MCP 的 Agent 会话(常驻)
@@ -77,10 +77,8 @@ async function init(company) {
 }
 
 async function login(email, code) {
-  if (!email) {
-    console.error("用法:npx agentosity login <邮箱>,收到验证码后再跑 login <邮箱> <验证码>");
-    process.exit(1);
-  }
+  // 不带参数:浏览器登录(像 npm login / gh auth login 一样)
+  if (!email) return browserLogin();
   if (!code) {
     const r = await post("/api/auth/send", { email });
     if (r?.ok) console.log(`✅ 验证码已发到 ${email},收到后跑:npx agentosity login ${email} <验证码>`);
@@ -99,6 +97,42 @@ async function login(email, code) {
     console.error(`登录失败:${r?.error ?? "验证码不对或已过期"}`);
     process.exit(1);
   }
+}
+
+async function browserLogin() {
+  const cfg = saveConfig({}); // 确保 deviceId 存在
+  const start = await post("/api/device/start", {});
+  if (!start?.code) {
+    console.error("无法发起登录(网络不可达)");
+    process.exit(1);
+  }
+  const url = `${apiBase()}/login?device=${start.code}`;
+  console.log(`在浏览器里完成登录…\n打不开就手动访问:${url}`);
+  try {
+    const { spawn } = await import("node:child_process");
+    const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+    const child = spawn(opener, [url], { stdio: "ignore", detached: true, shell: process.platform === "win32" });
+    child.on("error", () => {});
+    child.unref();
+  } catch {
+    /* 打不开浏览器就靠上面打印的 URL */
+  }
+  for (let i = 0; i < 150; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const poll = await post(`/api/device/poll?code=${start.code}`, undefined, { method: "GET" });
+    if (poll?.ok && poll.access_token) {
+      saveConfig({ email: poll.email, accessToken: poll.access_token, refreshToken: poll.refresh_token });
+      await post("/api/auth/merge", { deviceId: cfg.deviceId }); // 设备历史并入账号
+      console.log(`✅ 已登录 ${poll.email}`);
+      return;
+    }
+    if (poll?.expired) {
+      console.error("登录超时,再跑一次 npx agentosity login");
+      process.exit(1);
+    }
+  }
+  console.error("登录超时,再跑一次 npx agentosity login");
+  process.exit(1);
 }
 
 async function clockout() {
