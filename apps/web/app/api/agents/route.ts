@@ -4,11 +4,13 @@ import { todayKey } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
-/** Agentosity 公司榜(近 7 天,实时口径:含今天)+ 在岗实况 */
-export async function GET(_req: NextRequest) {
+/** Agentosity 公司榜(实时口径:含今天;days=7|30)+ 在岗实况 */
+export async function GET(req: NextRequest) {
+  const daysParam = new URL(req.url).searchParams.get("days");
+  const days = daysParam === "30" ? 30 : 7;
   const to = todayKey();
   const from = new Date(`${to}T12:00:00Z`);
-  from.setUTCDate(from.getUTCDate() - 6);
+  from.setUTCDate(from.getUTCDate() - (days - 1));
 
   const [board, live] = await Promise.all([
     db().rpc("fn_agents_board", { p_from: from.toISOString().slice(0, 10), p_to: to }),
@@ -16,5 +18,9 @@ export async function GET(_req: NextRequest) {
   ]);
   if (board.error) return NextResponse.json({ error: board.error.message }, { status: 500 });
   if (live.error) return NextResponse.json({ error: live.error.message }, { status: 500 });
-  return NextResponse.json({ period: { from: from.toISOString().slice(0, 10), to }, board: board.data, live: live.data });
+  return NextResponse.json({
+    period: { from: from.toISOString().slice(0, 10), to, days },
+    board: board.data,
+    live: live.data,
+  });
 }

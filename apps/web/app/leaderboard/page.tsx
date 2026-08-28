@@ -25,7 +25,9 @@ const CITIES = ["北京", "上海", "深圳", "杭州", "广州"];
 export default function LeaderboardPage() {
   const [tab, setTab] = useState<"agent" | "human">("agent");
   const [agentBoard, setAgentBoard] = useState<AgentRow[] | null>(null);
-  const [period, setPeriod] = useState<{ from: string; to: string } | null>(null);
+  const [period, setPeriod] = useState<{ from: string; to: string; days: number } | null>(null);
+  const [days, setDays] = useState<7 | 30>(7);
+  const [mode, setMode] = useState<"sum" | "avg">("sum");
   const [humanBoard, setHumanBoard] = useState<Board | null>(null);
   const [tag, setTag] = useState<{ type: string; value: string } | null>(null);
 
@@ -34,11 +36,14 @@ export default function LeaderboardPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/agents").then((r) => r.json()).then((d) => {
+    setAgentBoard(null);
+    fetch(`/api/agents?days=${days}`).then((r) => r.json()).then((d) => {
       setAgentBoard(d.board);
       setPeriod(d.period);
     });
-  }, []);
+  }, [days]);
+
+  const hoursOf = (h: number) => (mode === "sum" ? h : Math.round((h / days) * 10) / 10);
 
   useEffect(() => {
     const q = tag ? `?tag_type=${tag.type}&tag=${encodeURIComponent(tag.value)}` : "";
@@ -66,8 +71,23 @@ export default function LeaderboardPage() {
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <h2 className="text-xl font-black">Agent 工时榜</h2>
             <span className="text-xs font-bold opacity-60">
-              {period ? `${period.from} ~ ${period.to}` : ""} · 按近 7 天 agent-hours
+              {period ? `${period.from} ~ ${period.to}` : ""}
             </span>
+          </div>
+          {/* 口径切换 */}
+          <div className="mt-2 flex flex-wrap gap-1 text-xs font-extrabold">
+            {([
+              { d: 7, m: "sum", label: "近 7 天累计" },
+              { d: 30, m: "sum", label: "近 30 天累计" },
+              { d: 7, m: "avg", label: "近 7 天日均" },
+              { d: 30, m: "avg", label: "近 30 天日均" },
+            ] as { d: 7 | 30; m: "sum" | "avg"; label: string }[]).map((o) => (
+              <button key={o.label}
+                onClick={() => { setDays(o.d); setMode(o.m); }}
+                className={`nb-btn px-2 py-0.5 ${days === o.d && mode === o.m ? "bg-[var(--nb-yellow)]" : "bg-white"}`}>
+                {o.label}
+              </button>
+            ))}
           </div>
           {!agentBoard ? (
             <p className="py-10 text-center font-bold opacity-50">加载中…</p>
@@ -77,8 +97,8 @@ export default function LeaderboardPage() {
                 <tr className="text-left font-black" style={{ borderBottom: "3px solid var(--nb-ink)" }}>
                   <th className="py-2">#</th>
                   <th>公司</th>
-                  <th className="text-right" title="近 7 天该公司全部 Agent 真实干活的总时长(探针过滤,不含挂机)">
-                    工时(7天)
+                  <th className="text-right" title="该公司全部 Agent 真实干活的时长(探针过滤,不含挂机)">
+                    Agent Hours{mode === "avg" ? "(日均)" : `(${days}天)`}
                   </th>
                   <th className="text-right" title="Daily Active Agents:今天真实干过活的 Agent 会话数">
                     DAA(今日)
@@ -95,7 +115,7 @@ export default function LeaderboardPage() {
                     <td className="py-2 font-black">{i + 1}</td>
                     <td>{r.name}</td>
                     <td className="text-right tabular-nums font-black">
-                      {r.active_hours} <span className="text-xs opacity-50">h</span>
+                      {hoursOf(r.active_hours)} <span className="text-xs opacity-50">h{mode === "avg" ? "/天" : ""}</span>
                     </td>
                     <td className="text-right tabular-nums">{r.daa_today}</td>
                     <td className="text-right tabular-nums">
