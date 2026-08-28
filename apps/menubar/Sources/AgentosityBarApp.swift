@@ -8,6 +8,7 @@ struct AgentsResponse: Codable {
         let total: Int
         let working: Int?
         let idle: Int?
+        let today_active_hours: Double?
         let by_company: [LiveAgent]
     }
     struct LiveAgent: Codable {
@@ -546,23 +547,18 @@ struct PopoverView: View {
         Card(bg: Brand.ink, stroke: .clear) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("🤖 \(store.live?.total ?? 0)")
-                        .font(.system(size: 26, weight: .black))
+                    Text("⚡ \(store.live?.working ?? 0)/\(store.live?.total ?? 0)")
+                        .font(.system(size: 24, weight: .black))
                         .foregroundStyle(.white)
-                    Text("个 Agent 在上班")
-                        .font(.system(size: 12, weight: .bold))
+                    Text("全网在岗 Agent 正在干活")
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(.white.opacity(0.7))
                     Spacer()
                 }
-                if let l = store.live, l.total > 0 {
-                    HStack(spacing: 10) {
-                        Label("\(l.working ?? 0) 在干活", systemImage: "bolt.fill")
-                            .font(.system(size: 11, weight: .heavy))
-                            .foregroundStyle(Brand.yellow)
-                        Label("\(l.idle ?? 0) 挂机中", systemImage: "moon.zzz.fill")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.55))
-                    }
+                if let l = store.live {
+                    Text("今日全网已产出 \(String(format: "%.1f", l.today_active_hours ?? 0)) agent-hours · 😴 \(l.idle ?? 0) 个挂机")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.6))
                 }
                 if let mine = store.myCompanyRow {
                     Text("\(mine.name) · 近 7 天 Active \(String(format: "%.1f", mine.active_hours))h · 在岗 \(mine.live_now)")
@@ -576,7 +572,7 @@ struct PopoverView: View {
     private func pulseCard(_ p: Pulse) -> some View {
         Card(bg: Brand.green.opacity(0.22)) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("🏃 今天已有 \(p.checked_out) 人下班")
+                Text("🏃 全网 \(p.checked_out)/\(p.checked_out + p.still_working) 位用户已下班")
                     .font(.system(size: 13, weight: .heavy))
                 HStack(spacing: 8) {
                     if p.still_working > 0 {

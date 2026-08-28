@@ -177,11 +177,11 @@ export default function MePage() {
       {/* 我的排名(私密) */}
       <section className="nb-card mt-4 p-5"
         style={{ background: rank?.found && !rank.no_data && (rank.rank ?? 99) <= 3 ? "var(--nb-yellow)" : "white" }}>
-        <div className="text-xs font-black opacity-60">我的公司排名(只有你看得到)</div>
+        <div className="text-xs font-black opacity-60">我的公司排名 · 今日实时(只有你看得到)</div>
         {!rank ? (
           <p className="mt-2 font-bold opacity-50">查询中…</p>
         ) : !rank.found || rank.no_data ? (
-          <p className="mt-2 text-sm font-bold opacity-60">揭榜日还没有你公司的有效打卡。拉上同事一起,1 个人也能上榜。</p>
+          <p className="mt-2 text-sm font-bold opacity-60">今天还没有你公司的有效打卡。拉上同事一起,1 个人也能上榜。</p>
         ) : (
           <div className="mt-1 flex flex-wrap items-baseline gap-3">
             <span className="text-4xl font-black tabular-nums">#{rank.rank}<span className="text-lg opacity-50">/{rank.total}</span></span>

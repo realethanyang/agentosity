@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
-import { revealDayKey } from "@/lib/time";
+import { todayKey } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,8 @@ export async function GET(req: NextRequest) {
   const tagType = searchParams.get("tag_type"); // industry | city
   const tag = searchParams.get("tag");
 
-  const day = revealDayKey();
+  // 实时口径:当日平均下班,随打卡实时变化
+  const day = todayKey();
   const { data, error } = await db().rpc("fn_board", {
     p_day: day,
     p_tag_type: tagType || null,

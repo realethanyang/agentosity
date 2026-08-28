@@ -6,11 +6,10 @@ import { fmtMinutes } from "@/lib/time";
 type AgentRow = {
   name: string;
   active_hours: number;
-  overtime_hours: number;
-  sessions: number;
+  daa_today: number;
   human_avg_minutes: number | null;
-  leverage: number | null;
   live_now: number;
+  working_now: number;
 };
 type Top3 = { rank: number; name: string; avg_minutes: number; count: number };
 type Board = {
@@ -54,36 +53,40 @@ export default function LeaderboardPage() {
       <div className="mt-4 flex gap-2 text-sm font-black">
         <button onClick={() => setTab("agent")}
           className={`nb-btn px-4 py-2 ${tab === "agent" ? "bg-[var(--nb-ink)] text-white" : "bg-white"}`}>
-          🤖 Agent 加班榜
+          🤖 Agent 工时榜
         </button>
         <button onClick={() => setTab("human")}
           className={`nb-btn px-4 py-2 ${tab === "human" ? "bg-[var(--nb-green)]" : "bg-white"}`}>
-          🏃 早下班英雄榜
+          🏃 早下班榜
         </button>
       </div>
 
       {tab === "agent" ? (
         <section className="nb-card mt-4 overflow-x-auto bg-white p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-            <h2 className="text-xl font-black">Agent 加班榜</h2>
+            <h2 className="text-xl font-black">Agent 工时榜</h2>
             <span className="text-xs font-bold opacity-60">
-              {period ? `${period.from} ~ ${period.to}` : ""} · 按 Active Agent-Hours
+              {period ? `${period.from} ~ ${period.to}` : ""} · 按近 7 天 agent-hours
             </span>
           </div>
           {!agentBoard ? (
             <p className="py-10 text-center font-bold opacity-50">加载中…</p>
           ) : (
-            <table className="mt-4 w-full min-w-[620px] text-sm">
+            <table className="mt-4 w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="text-left font-black" style={{ borderBottom: "3px solid var(--nb-ink)" }}>
                   <th className="py-2">#</th>
                   <th>公司</th>
-                  <th className="text-right" title="探针过滤后的真实干活时长">Agent 工时</th>
-                  <th className="text-right" title="该公司人类的平均下班时间(揭榜日)">人走于</th>
-                  <th className="text-right" title="人类下班后 Agent 继续干的时长">Agent 加班</th>
-                  <th className="text-right" title="会话数(DAA 累计)">会话</th>
-                  <th className="text-right" title="Agent 工时 ÷ 人类工时">Leverage</th>
-                  <th className="text-right">在岗</th>
+                  <th className="text-right" title="近 7 天该公司全部 Agent 真实干活的总时长(探针过滤,不含挂机)">
+                    工时(7天)
+                  </th>
+                  <th className="text-right" title="Daily Active Agents:今天真实干过活的 Agent 会话数">
+                    DAA(今日)
+                  </th>
+                  <th className="text-right" title="该公司真人最近一日的平均下班时间">
+                    平均下班
+                  </th>
+                  <th className="text-right" title="此刻:正在干活数/在岗总数">在岗</th>
                 </tr>
               </thead>
               <tbody className="font-bold">
@@ -91,16 +94,18 @@ export default function LeaderboardPage() {
                   <tr key={r.name} className="border-b border-dashed border-black/20">
                     <td className="py-2 font-black">{i + 1}</td>
                     <td>{r.name}</td>
-                    <td className="text-right tabular-nums font-black">{r.active_hours}h</td>
+                    <td className="text-right tabular-nums font-black">
+                      {r.active_hours} <span className="text-xs opacity-50">h</span>
+                    </td>
+                    <td className="text-right tabular-nums">{r.daa_today}</td>
                     <td className="text-right tabular-nums">
                       {r.human_avg_minutes != null ? fmtMinutes(r.human_avg_minutes) : <span className="opacity-30">—</span>}
                     </td>
-                    <td className="text-right tabular-nums">{r.overtime_hours}h</td>
-                    <td className="text-right tabular-nums">{r.sessions}</td>
-                    <td className="text-right tabular-nums">{r.leverage ?? "—"}</td>
                     <td className="text-right">
                       {r.live_now > 0 ? (
-                        <span className="bg-[var(--nb-green)] px-2 py-0.5 text-xs font-black">⚡{r.live_now}</span>
+                        <span className="bg-[var(--nb-green)] px-2 py-0.5 text-xs font-black tabular-nums">
+                          ⚡{r.working_now}/{r.live_now}
+                        </span>
                       ) : (
                         <span className="opacity-30">—</span>
                       )}
@@ -111,7 +116,7 @@ export default function LeaderboardPage() {
             </table>
           )}
           <p className="mt-2 text-xs font-bold opacity-50">
-            「人走于 18:05 · Agent 加班到深夜」—— 公司越 AI-native,人走得越早
+            工时 = 探针测出的真实干活时长(挂机不算)· 悬停列头看指标定义 ·「平均下班 18:05,Agent 还在干」
           </p>
         </section>
       ) : (
@@ -138,8 +143,10 @@ export default function LeaderboardPage() {
 
           <section className="nb-card mt-4 bg-white p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <h2 className="text-xl font-black">{tag ? `${tag.value} · ` : "全国 · "}早下班英雄榜</h2>
-              <span className="text-xs font-bold opacity-60">{humanBoard?.day} 榜 · 每天 10:00 揭榜</span>
+              <h2 className="text-xl font-black">{tag ? `${tag.value} · ` : "全国 · "}早下班榜</h2>
+              <span className="text-xs font-bold opacity-60">
+                {humanBoard?.day} · 当日平均下班时间,打卡即更新
+              </span>
             </div>
             {!humanBoard ? (
               <p className="py-10 text-center font-bold opacity-50">揭榜中…</p>
@@ -159,11 +166,10 @@ export default function LeaderboardPage() {
               </div>
             )}
             {humanBoard && (
-              <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+              <div className="mt-4 grid grid-cols-2 gap-3 text-center">
                 {[
-                  { label: "今日实时", v: humanBoard.stats.today_avg },
-                  { label: "昨日平均", v: humanBoard.stats.day_avg },
-                  { label: "一周平均", v: humanBoard.stats.week_avg },
+                  { label: "全网今日平均下班", v: humanBoard.stats.day_avg },
+                  { label: "全网近 7 天平均", v: humanBoard.stats.week_avg },
                 ].map((s) => (
                   <div key={s.label} className="nb-card bg-white p-3">
                     <div className="text-xl font-black tabular-nums">{fmtMinutes(s.v)}</div>
@@ -173,7 +179,7 @@ export default function LeaderboardPage() {
               </div>
             )}
             <p className="mt-3 text-center text-xs font-bold opacity-50">
-              共 {humanBoard?.company_count ?? "—"} 家公司上榜 · 只公布前三,绝不挂人 · 第 4 名开始只私信本人
+              统计口径:公司当日所有打卡的平均下班时刻(如 17:00 和 18:00 两人 → 17:30)· 只公布前三,绝不挂人
             </p>
           </section>
         </>

@@ -177,7 +177,7 @@ async function clockout() {
     console.log(`✅ 下班快乐!${r.clocked_local}`);
     if (r.rank_company != null) console.log(`   你是公司今天第 ${r.rank_company} 个下班的 · 全网第 ${r.rank_global} 个`);
     if (r.note) console.log(`   ${r.note}`);
-    console.log(`   明早 10:00 揭榜:${apiBase()}/me`);
+    console.log(`   榜单实时更新:${apiBase()}/me`);
   } else {
     console.error(`打卡失败:${r?.error ?? "网络不可达"}`);
     process.exit(1);

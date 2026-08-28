@@ -148,7 +148,7 @@ export default function CheckinPage() {
             </p>
           )}
           <p className="mt-4 text-sm font-bold opacity-70">
-            明早 10:00 揭榜,来看你公司排第几 →{" "}
+            榜单实时更新,看你公司排第几 →{" "}
             <Link href="/me" className="underline">我的排名</Link>
           </p>
         </div>

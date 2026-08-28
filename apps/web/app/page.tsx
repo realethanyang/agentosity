@@ -17,6 +17,7 @@ type AgentRow = {
   active_hours: number;
   human_avg_minutes: number | null;
   live_now: number;
+  working_now: number;
 };
 type Top3 = { rank: number; name: string; avg_minutes: number; count: number };
 type Pulse = {
@@ -76,24 +77,32 @@ export default function Home() {
       {/* ===== 外环 · 全网实况 ===== */}
       <section className="pt-8">
         <div className="text-xs font-black tracking-widest opacity-50">
-          AI 时代的考勤系统 · 此刻
+          全网 · 此刻 <span className="live-dot ml-1 align-middle" style={{ width: 10, height: 10 }} aria-hidden />
         </div>
-        <h1 className="mt-2 text-5xl font-black leading-tight tabular-nums sm:text-6xl">
-          <span className="live-dot mr-2" aria-hidden />
-          ⚡ {live?.working ?? "—"}
-          <span className="text-2xl font-black opacity-60"> 个 Agent 正在干活</span>
+        {/* 主视觉:我们定义的单位 agent-hours */}
+        <h1 className="mt-2 font-black leading-none tabular-nums">
+          <span className="text-6xl sm:text-7xl">{live?.today_active_hours ?? "—"}</span>
+          <span className="ml-2 inline-block -translate-y-1 border-3 bg-[var(--nb-yellow)] px-2 py-0.5 text-xl font-black"
+            style={{ border: "3px solid var(--nb-ink)", boxShadow: "3px 3px 0 0 var(--nb-ink)" }}>
+            agent-hours
+          </span>
         </h1>
-        <p className="mt-2 text-sm font-bold opacity-60 tabular-nums">
-          全网在岗 {live?.total ?? "—"}(😴 {live?.idle ?? "—"} 挂机)· 今日已产出{" "}
-          <span className="text-[var(--nb-ink)] opacity-100">{live?.today_active_hours ?? "—"}</span> agent-hours
+        <p className="mt-1 text-sm font-bold opacity-60">今日全网 Agent 已干活的总时长</p>
+        <p className="mt-3 text-lg font-black tabular-nums">
+          ⚡ {live?.working ?? "—"}<span className="opacity-50">/{live?.total ?? "—"}</span> 个在岗 Agent 正在干活
+          <span className="ml-2 text-sm font-bold opacity-50">(其余 {live?.idle ?? "—"} 个挂机中)</span>
         </p>
 
         {/* 灵魂对照条 */}
         {pulse && (
           <div className="nb-card mt-4 bg-[var(--nb-green)] px-4 py-3 text-sm font-bold">
-            🏃 今天已有 <span className="text-lg font-black tabular-nums">{pulse.checked_out}</span> 位人类下班
-            {live != null && live.total > 0 && (
-              <> · 他们的 Agent 还有 <span className="text-lg font-black tabular-nums">{live.total}</span> 个在岗</>
+            🏃 全网{" "}
+            <span className="text-lg font-black tabular-nums">
+              {pulse.checked_out}/{pulse.checked_out + pulse.still_working}
+            </span>{" "}
+            位用户已下班
+            {live != null && live.working > 0 && (
+              <> · ⚡ <span className="text-lg font-black tabular-nums">{live.working}</span> 个 Agent 还在替他们干活</>
             )}
             {pulse.companies_all_out > 0 && <> · {pulse.companies_all_out} 家公司全员撤离</>}
           </div>
@@ -130,10 +139,11 @@ export default function Home() {
             {myCompany?.pulse ? (
               <>
                 <div className="mt-1 text-sm font-bold tabular-nums">
-                  同事:今天 {myCompany.pulse.checked_out}/{myCompany.pulse.roster} 人已下班
+                  真人:今天 {myCompany.pulse.checked_out}/{myCompany.pulse.roster} 人已下班
                 </div>
                 <div className="text-sm font-bold tabular-nums">
-                  Agent:⚡{myCompany.pulse.working} 干活 · 😴{myCompany.pulse.idle} 挂机 · 今日 {myCompany.pulse.active_hours_today}h
+                  Agent:⚡ {myCompany.pulse.working}/{myCompany.pulse.working + myCompany.pulse.idle} 个正在工作
+                  · 今日 {myCompany.pulse.active_hours_today} agent-hours
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1 text-[11px] font-black">
                   {myCompany.ranks?.agent_overall && (
@@ -180,7 +190,7 @@ export default function Home() {
       {/* ===== 外环 · 双榜预览 ===== */}
       <section className="nb-card mt-6 bg-white p-5">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-xl font-black">Agent 加班榜</h2>
+          <h2 className="text-xl font-black">Agent 工时榜<span className="ml-1 text-xs font-bold opacity-50">近 7 天</span></h2>
           <Link href="/leaderboard" className="text-xs font-bold underline opacity-60">完整榜单 →</Link>
         </div>
         {board && (
@@ -190,11 +200,13 @@ export default function Home() {
                 <tr key={r.name} className="border-b border-dashed border-black/15">
                   <td className="py-1.5 font-black">{i + 1}</td>
                   <td>{r.name}</td>
-                  <td className="text-right tabular-nums font-black">{r.active_hours}h</td>
+                  <td className="text-right tabular-nums font-black">{r.active_hours} h</td>
                   <td className="text-right text-xs tabular-nums opacity-60">
-                    {r.human_avg_minutes != null ? `人走 ${fmtMinutes(r.human_avg_minutes)}` : ""}
+                    {r.human_avg_minutes != null ? `平均下班 ${fmtMinutes(r.human_avg_minutes)}` : ""}
                   </td>
-                  <td className="w-10 text-right text-xs">{r.live_now > 0 ? `⚡${r.live_now}` : ""}</td>
+                  <td className="w-14 text-right text-xs tabular-nums">
+                    {r.live_now > 0 ? `⚡${r.working_now}/${r.live_now}` : ""}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -204,7 +216,7 @@ export default function Home() {
 
       <section className="nb-card mt-4 bg-white p-5">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-xl font-black">早下班英雄榜</h2>
+          <h2 className="text-xl font-black">早下班榜<span className="ml-1 text-xs font-bold opacity-50">今日实时</span></h2>
           <Link href="/leaderboard?tab=human" className="text-xs font-bold underline opacity-60">完整榜单 →</Link>
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">

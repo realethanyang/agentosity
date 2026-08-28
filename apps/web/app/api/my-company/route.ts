@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { authFromRequest } from "@/lib/auth-server";
-import { revealDayKey, todayKey } from "@/lib/time";
+import { todayKey } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       p_company: company.id,
       p_from: from.toISOString().slice(0, 10),
       p_to: to,
-      p_day: revealDayKey(), // 人类榜名次仍按揭榜日
+      p_day: todayKey(), // 人类榜名次实时口径
     }),
   ]);
   if (pulse.error) return NextResponse.json({ error: pulse.error.message }, { status: 500 });

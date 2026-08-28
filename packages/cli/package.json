@@ -1,6 +1,6 @@
 {
   "name": "agentosity",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Agentosity — AI-native is a number now. Automatic attendance for your AI agents (stdio MCP lifecycle + activity probes) + human clock-out CLI.",
   "type": "module",
   "bin": {
