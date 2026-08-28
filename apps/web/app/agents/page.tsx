@@ -150,7 +150,7 @@ export default function AgentsPage() {
               </a>
             </div>
             <p className="mt-1 text-xs font-bold opacity-50">
-              解压拖进「应用程序」;首次打开若被拦截:右键 → 打开
+              已 Apple 公证,解压拖进「应用程序」,双击即用
             </p>
             <button onClick={() => setShowCmd(!showCmd)} className="mt-2 text-xs font-bold underline opacity-60">
               {showCmd ? "收起" : "不想装 App?用终端命令(全平台通用)→"}
