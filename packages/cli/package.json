@@ -1,14 +1,26 @@
 {
   "name": "agentosity",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Agentosity — AI-native is a number now. Automatic attendance for your AI agents (stdio MCP lifecycle + activity probes) + human clock-out CLI.",
   "type": "module",
   "bin": {
     "agentosity": "./bin/agentosity.js"
   },
-  "files": ["bin", "src"],
-  "engines": { "node": ">=18" },
-  "keywords": ["mcp", "agent", "agent-hours", "claude-code", "codex", "xiabanbang"],
+  "files": [
+    "bin",
+    "src"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "agent",
+    "agent-hours",
+    "claude-code",
+    "codex",
+    "xiabanbang"
+  ],
   "homepage": "https://agentosity.com",
   "repository": {
     "type": "git",
