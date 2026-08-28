@@ -144,13 +144,13 @@ export default function AgentsPage() {
         <div className="mt-3 text-xs font-bold">
           <span className="opacity-70">支持的 Agent Harness:</span>
           <div className="mt-1 flex flex-wrap gap-1">
-            {["Claude Code", "Codex CLI", "Gemini CLI", "Cursor", "Cline", "Windsurf"].map((h) => (
+            {["Claude Code", "Codex CLI", "OpenCode", "Gemini CLI", "Cursor", "Cline", "Windsurf"].map((h) => (
               <span key={h} className="border-2 border-black bg-white px-2 py-0.5">{h}</span>
             ))}
             <span className="px-1 py-0.5 opacity-60">…任何支持 stdio MCP 的 harness</span>
           </div>
           <p className="mt-1 opacity-70">
-            活跃度探针(区分干活/挂机)目前精确支持 Claude Code 和 Codex,其余按在岗时长计。
+            活跃度探针(区分干活/挂机)精确支持 Claude Code / Codex / OpenCode / Gemini CLI,其余按在岗时长计。
           </p>
         </div>
         <p className="mt-2 text-xs font-bold opacity-70">

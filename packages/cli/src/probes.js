@@ -1,7 +1,8 @@
-import { readdirSync, statSync, openSync, readSync, closeSync, fstatSync } from "node:fs";
+import { readdirSync, statSync, openSync, readSync, closeSync, fstatSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 
 /**
  * 活跃度探针:回答"此刻 Agent 是否在干活"。
@@ -18,6 +19,7 @@ export function detectHarness(clientInfo) {
   if (n.includes("gemini")) return "gemini-cli";
   if (n.includes("cursor")) return "cursor";
   if (n.includes("cline")) return "cline";
+  if (n.includes("opencode")) return "opencode";
   return n || "unknown";
 }
 
@@ -38,30 +40,65 @@ function codexSessionDir() {
   );
 }
 
+/** Gemini CLI:~/.gemini/tmp/<sha256(cwd)>/ 下的日志文件 */
+function geminiSessionDir() {
+  const hash = createHash("sha256").update(process.cwd()).digest("hex");
+  return join(homedir(), ".gemini", "tmp", hash);
+}
+
+/**
+ * 各 harness 的探针配置:
+ * - dir:目录内找"我们这个会话"的文件(新建或最近在写的)
+ * - file:固定文件,直接看 mtime(全局共享,精度低一档但胜过没有)
+ * - tail:文件是 jsonl 时才解析尾巴的在途工具调用
+ */
+const PROBE_TARGETS = {
+  "claude-code": { dir: claudeSessionDir, ext: ".jsonl", tail: true },
+  codex: { dir: codexSessionDir, ext: ".jsonl", tail: true },
+  "gemini-cli": { dir: geminiSessionDir, ext: "", tail: false },
+  opencode: {
+    file: () => join(homedir(), ".local", "share", "opencode", "opencode.db-wal"),
+    tail: false,
+  },
+};
+
 export function createProbe(harness, processStartMs) {
+  const target = PROBE_TARGETS[harness];
   const state = {
     kind: "none",
     file: null,
+    tail: target?.tail ?? false,
     lastMtimeMs: 0,
     lastWriteAt: 0,
   };
 
-  const dirOf = { "claude-code": claudeSessionDir, codex: codexSessionDir }[harness];
-
   function bindFile() {
-    if (state.file || !dirOf) return;
+    if (state.file || !target) return;
     try {
-      const dir = dirOf();
+      if (target.file) {
+        const p = target.file();
+        if (!existsSync(p)) return;
+        const st = statSync(p);
+        state.file = p;
+        state.kind = "file-mtime";
+        state.lastMtimeMs = st.mtimeMs;
+        state.lastWriteAt = Date.now();
+        return;
+      }
+      const dir = target.dir();
       const candidates = readdirSync(dir)
-        .filter((f) => f.endsWith(".jsonl"))
+        .filter((f) => (target.ext ? f.endsWith(target.ext) : true))
         .map((f) => {
           const p = join(dir, f);
           const st = statSync(p);
+          if (!st.isFile()) return null;
           return { p, birth: st.birthtimeMs || st.ctimeMs, mtime: st.mtimeMs };
         })
-        // 会话文件在首条消息时才创建,允许比进程启动早 2 分钟(时钟偏差)之后的任何时间
-        .filter((c) => c.birth >= processStartMs - 120_000)
-        .sort((a, b) => b.birth - a.birth);
+        .filter(Boolean)
+        // 会话文件可能是新建的(新会话),也可能是续用的老文件(resume):
+        // 新建:创建时间在进程启动前后;续用:进程启动后仍在被写入
+        .filter((c) => c.birth >= processStartMs - 120_000 || c.mtime >= processStartMs - 5_000)
+        .sort((a, b) => b.mtime - a.mtime);
       if (candidates.length > 0) {
         state.file = candidates[0].p;
         state.kind = "file-mtime";
@@ -90,9 +127,9 @@ export function createProbe(harness, processStartMs) {
     }
   }
 
-  /** 信号 2:尾巴状态 — 最后一个事件是发起工具调用且尚无结果 → 工具在途 */
+  /** 信号 2:尾巴状态 — 最后一个事件是发起工具调用且尚无结果 → 工具在途(仅 jsonl) */
   function toolInFlight() {
-    if (!state.file) return false;
+    if (!state.file || !state.tail) return false;
     try {
       const fd = openSync(state.file, "r");
       const size = fstatSync(fd).size;
