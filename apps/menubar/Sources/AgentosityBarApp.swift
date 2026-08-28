@@ -409,7 +409,10 @@ struct AgentosityBarApp: App {
             PopoverView(store: store)
         } label: {
             Group {
-                if let l = store.live, l.total > 0 {
+                // 登录后显示"自己的在跑 Agent 数",未登录显示全网在岗
+                if store.email != nil, let mine = store.myAgents, mine.live_now > 0 {
+                    Text("⚡\(mine.live_now)")
+                } else if let l = store.live, l.total > 0 {
                     Text("🤖\(l.total)")
                 } else {
                     Text("🤖")
@@ -460,6 +463,14 @@ struct PopoverView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
+            if store.email != nil {
+                // 内环:我的 Agent + 个人对照
+                if let my = store.myAgents, my.sessions > 0 {
+                    myAgentsCard(my)
+                }
+                checkinSection
+            }
+            // 外环:全网
             agentHeroCard
             if let p = store.pulse, p.checked_out > 0 || p.still_working > 0 {
                 pulseCard(p)
@@ -481,10 +492,6 @@ struct PopoverView: View {
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(.secondary)
             } else {
-                if let my = store.myAgents, my.sessions > 0 {
-                    myAgentsCard(my)
-                }
-                checkinSection
                 installSection
             }
             if let err = store.errorText {
@@ -600,12 +607,15 @@ struct PopoverView: View {
     private var checkinSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let today = store.myToday, today.checked_in {
+                // 个人对照行:灵魂在个人尺度的复刻
                 HStack {
-                    Text("✅ 今天 \(today.clocked_local ?? "") 已打卡")
-                        .font(.system(size: 13, weight: .black))
+                    Text("✅ 你 \(today.clocked_local ?? "") 已下班\(store.myAgents.map { $0.live_now > 0 ? " · Agent 还有 \($0.live_now) 个在岗" : "" } ?? "")")
+                        .font(.system(size: 12, weight: .black))
+                        .lineLimit(2)
                     Spacer()
-                    Button("改成现在 🔁") { Task { await store.clockOut() } }
+                    Button("🔁") { Task { await store.clockOut() } }
                         .font(.system(size: 10, weight: .bold))
+                        .help("把下班时间改成现在")
                 }
                 .padding(.vertical, 2)
             } else {

@@ -3,9 +3,9 @@ import Nav from "@/components/Nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "下班榜 · 全国上班族共同维护的真实下班时间数据库",
+  title: "Agentosity — AI-native is a number now.",
   description:
-    "下班打卡,公司按平均下班时间排名,只公布前三。AI-native is a number now.",
+    "AI 时代的考勤系统:自动测量你和你公司的 Agent 工时,让「AI 替人扛了多少活」成为可测量、可比较、可炫耀的数字。你的下班时间,是它最有人味的注脚。",
 };
 
 export default function RootLayout({
@@ -17,7 +17,8 @@ export default function RootLayout({
         <Nav />
         {children}
         <footer className="mx-auto max-w-3xl px-4 py-10 text-center text-xs font-bold opacity-60">
-          下班榜 · Agentosity — AI-native is a number now. · VibeHacks #5 ·{" "}
+          Agentosity — Humans clock out. Agents clock in. · VibeHacks #5 ·{" "}
+          <a href="/start" className="underline">接入</a> ·{" "}
           <a
             href="https://github.com/realethanyang/agentosity"
             target="_blank"

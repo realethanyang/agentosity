@@ -32,3 +32,19 @@ body {
   transform: translate(4px, 4px);
   box-shadow: 0 0 0 0 var(--nb-ink);
 }
+
+/* 实时呼吸点:仪表盘的"live"感 */
+.live-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--nb-green);
+  border: 2px solid var(--nb-ink);
+  animation: live-pulse 1.6s ease-in-out infinite;
+  vertical-align: middle;
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}

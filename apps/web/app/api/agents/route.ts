@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
-import { revealDayKey } from "@/lib/time";
+import { todayKey } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
-/** Agentosity 公司榜(近 7 天)+ 在岗实况 */
+/** Agentosity 公司榜(近 7 天,实时口径:含今天)+ 在岗实况 */
 export async function GET(_req: NextRequest) {
-  const to = revealDayKey();
+  const to = todayKey();
   const from = new Date(`${to}T12:00:00Z`);
   from.setUTCDate(from.getUTCDate() - 6);
 
