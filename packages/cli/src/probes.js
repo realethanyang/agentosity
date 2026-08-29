@@ -20,6 +20,13 @@ export function detectHarness(clientInfo) {
   if (n.includes("cursor")) return "cursor";
   if (n.includes("cline")) return "cline";
   if (n.includes("opencode")) return "opencode";
+  if (n.includes("kimi")) return "kimi";
+  if (n.includes("goose")) return "goose";
+  if (n.includes("hermes")) return "hermes";
+  if (n.includes("openclaw")) return "openclaw";
+  if (n.includes("grok")) return "grok";
+  if (n.includes("mimo")) return "mimo";
+  if (n === "pi" || n.includes("pi-agent") || n.includes("pi agent")) return "pi";
   return n || "unknown";
 }
 
@@ -50,17 +57,81 @@ function geminiSessionDir() {
  * 各 harness 的探针配置:
  * - dir:目录内找"我们这个会话"的文件(新建或最近在写的)
  * - file:固定文件,直接看 mtime(全局共享,精度低一档但胜过没有)
+ * - artifact:通用形态 —— 解析出一个文件/目录,递归看最新 mtime(2026-08 实机勘探所得规则)
  * - tail:文件是 jsonl 时才解析尾巴的在途工具调用
  */
+const h = (...p) => join(homedir(), ...p);
+
 const PROBE_TARGETS = {
   "claude-code": { dir: claudeSessionDir, ext: ".jsonl", tail: true },
   codex: { dir: codexSessionDir, ext: ".jsonl", tail: true },
   "gemini-cli": { dir: geminiSessionDir, ext: "", tail: false },
   opencode: {
-    file: () => join(homedir(), ".local", "share", "opencode", "opencode.db-wal"),
+    file: () => h(".local", "share", "opencode", "opencode.db-wal"),
     tail: false,
   },
+  // 按 cwd 定位的:pi(cwd 破折号化子目录)/ grok(URL 编码 cwd)/ kimi(wd_<basename>_<hash>)
+  pi: { artifact: () => cwdDashDir(h(".pi", "agent", "sessions")), depth: 2 },
+  grok: { artifact: () => existing(join(h(".grok", "sessions"), encodeURIComponent(process.cwd()))), depth: 2 },
+  kimi: { artifact: () => wdBasenameDir(h(".kimi-code", "sessions")), depth: 3 },
+  // 全局库(会话不分 cwd,精度低一档但真实):goose / hermes / openclaw / mimo
+  goose: { artifact: () => existing(h(".local", "share", "goose", "sessions")), depth: 1 },
+  hermes: { artifact: () => existing(h(".hermes", "sessions")), depth: 1 },
+  openclaw: { artifact: () => existing(h(".openclaw", "agents")), depth: 3 },
+  mimo: { artifact: () => existing(h(".local", "share", "mimocode")), depth: 2 },
 };
+
+function existing(p) {
+  return existsSync(p) ? p : null;
+}
+
+/** pi:~/.pi/agent/sessions/ 下找目录名包含 cwd 破折号形式的(取最长匹配) */
+function cwdDashDir(root) {
+  try {
+    const slug = process.cwd().replace(/\//g, "-");
+    const hits = readdirSync(root).filter((d) => d.includes(slug));
+    if (hits.length === 0) return null;
+    hits.sort((a, b) => a.length - b.length); // 最短的 = 最精确(更长的是子目录会话)
+    return join(root, hits[0]);
+  } catch {
+    return null;
+  }
+}
+
+/** kimi:~/.kimi-code/sessions/wd_<cwd末级目录名>_<hash>/,同名多个取最近修改 */
+function wdBasenameDir(root) {
+  try {
+    const base = process.cwd().split("/").filter(Boolean).pop() ?? "";
+    const hits = readdirSync(root)
+      .filter((d) => d.startsWith(`wd_${base}_`))
+      .map((d) => {
+        const p = join(root, d);
+        return { p, mtime: statSync(p).mtimeMs };
+      })
+      .sort((a, b) => b.mtime - a.mtime);
+    return hits[0]?.p ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** 深度受限的递归最新 mtime(条目上限防大目录) */
+function newestMtimeRec(path, depth, budget = { n: 400 }) {
+  try {
+    const st = statSync(path);
+    if (st.isFile()) return st.mtimeMs;
+    if (depth <= 0 || budget.n <= 0) return st.mtimeMs;
+    let newest = st.mtimeMs;
+    for (const f of readdirSync(path)) {
+      if (budget.n-- <= 0) break;
+      const m = newestMtimeRec(join(path, f), depth - 1, budget);
+      if (m > newest) newest = m;
+    }
+    return newest;
+  } catch {
+    return 0;
+  }
+}
 
 export function createProbe(harness, processStartMs) {
   const target = PROBE_TARGETS[harness];
@@ -76,6 +147,17 @@ export function createProbe(harness, processStartMs) {
   function bindFile() {
     if (state.file || !target) return;
     try {
+      // 通用 artifact(文件或目录,递归 mtime)
+      if (target.artifact) {
+        const p = target.artifact();
+        if (!p) return; // 目标还没出现(比如会话目录未创建),下个 tick 再试
+        state.file = p;
+        state.kind = "file-mtime";
+        state.depth = target.depth ?? 1;
+        state.lastMtimeMs = newestMtimeRec(p, state.depth);
+        state.lastWriteAt = Date.now();
+        return;
+      }
       if (target.file) {
         const p = target.file();
         if (!existsSync(p)) return;
@@ -111,19 +193,23 @@ export function createProbe(harness, processStartMs) {
     }
   }
 
-  /** 信号 1:文件最近有写入 */
+  /** 信号 1:文件/目录最近有写入 */
   function recentWrite() {
     if (!state.file) return false;
     try {
-      const st = statSync(state.file);
-      if (st.mtimeMs > state.lastMtimeMs) {
-        state.lastMtimeMs = st.mtimeMs;
+      const m = state.depth
+        ? newestMtimeRec(state.file, state.depth)
+        : statSync(state.file).mtimeMs;
+      if (m === 0) throw new Error("gone");
+      if (m > state.lastMtimeMs) {
+        state.lastMtimeMs = m;
         state.lastWriteAt = Date.now();
       }
       return Date.now() - state.lastWriteAt < RECENT_WRITE_MS;
     } catch {
-      state.file = null; // 文件消失 → 解绑重找
+      state.file = null; // 目标消失 → 解绑重找
       state.kind = "none";
+      state.depth = undefined;
       return false;
     }
   }

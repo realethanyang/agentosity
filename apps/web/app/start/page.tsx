@@ -72,13 +72,13 @@ export default function StartPage() {
       <section className="nb-card mt-5 bg-white p-5">
         <h2 className="text-lg font-black">支持的 Agent Harness</h2>
         <div className="mt-2 flex flex-wrap gap-1 text-xs font-bold">
-          {["Claude Code", "Codex CLI", "OpenCode", "Gemini CLI", "Cursor", "Windsurf"].map((h) => (
+          {["Claude Code", "Codex CLI", "OpenCode", "Gemini CLI", "Pi", "Kimi Code", "Goose", "Hermes", "OpenClaw", "Grok", "MiMo Code", "Cursor", "Windsurf"].map((h) => (
             <span key={h} className="border-2 border-black bg-white px-2 py-0.5">{h}</span>
           ))}
           <span className="px-1 py-0.5 opacity-60">…任何支持 stdio MCP 的 harness</span>
         </div>
         <p className="mt-2 text-xs font-bold opacity-60">
-          活跃度探针(区分 ⚡干活 / 😴挂机)精确支持 Claude Code / Codex / OpenCode / Gemini CLI,其余按在岗时长计。
+          活跃度探针(区分 ⚡干活 / 😴挂机)精确支持前 11 家,Cursor / Windsurf 等按在岗时长计。
         </p>
       </section>
 

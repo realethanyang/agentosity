@@ -28,6 +28,13 @@ final class RadarEngine {
         ("codex", "codex"),
         ("opencode", "opencode"),
         ("gemini", "gemini-cli"),
+        ("pi", "pi"),
+        ("kimi", "kimi"),
+        ("goose", "goose"),
+        ("hermes", "hermes"),
+        ("openclaw", "openclaw"),
+        ("grok", "grok"),
+        ("mimo", "mimo"),
     ]
 
     // 由 Store 注入的上下文
@@ -135,7 +142,9 @@ final class RadarEngine {
 
         // 信号 3:会话文件最近 90 秒有写入 —— 仅当该目录只有这一个会话在用(否则分不清是谁写的)
         if !active, let dir = sessionArtifact(harness: t.harness, cwd: t.cwd), artifactCount[dir] == 1 {
-            if let mtime = newestMtime(at: dir), Date().timeIntervalSince(mtime) < 90 {
+            var budget = 400
+            if let mtime = newestMtime(at: dir, depth: artifactDepth(t.harness), budget: &budget),
+               Date().timeIntervalSince(mtime) < 90 {
                 active = true
             }
         }
@@ -153,9 +162,10 @@ final class RadarEngine {
         }
     }
 
-    /** 各 harness 的会话痕迹位置(文件或目录) */
+    /** 各 harness 的会话痕迹位置(文件或目录;规则来自实机勘探 2026-08) */
     private func sessionArtifact(harness: String, cwd: String?) -> String? {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let fm = FileManager.default
         switch harness {
         case "claude-code":
             guard let cwd else { return nil }
@@ -167,23 +177,69 @@ final class RadarEngine {
             return "\(home)/.codex/sessions/\(f.string(from: Date()))"
         case "opencode":
             return "\(home)/.local/share/opencode/opencode.db-wal"
+        case "pi":
+            // ~/.pi/agent/sessions/<cwd 破折号化>/,取包含 slug 的最短目录名
+            guard let cwd else { return nil }
+            let root = "\(home)/.pi/agent/sessions"
+            let slug = cwd.replacingOccurrences(of: "/", with: "-")
+            let hits = ((try? fm.contentsOfDirectory(atPath: root)) ?? [])
+                .filter { $0.contains(slug) }
+                .sorted { $0.count < $1.count }
+            return hits.first.map { "\(root)/\($0)" }
+        case "grok":
+            // ~/.grok/sessions/<URL 编码的 cwd>/(字符集须与 JS encodeURIComponent 一致)
+            guard let cwd else { return nil }
+            var allowed = CharacterSet.alphanumerics
+            allowed.insert(charactersIn: "-_.!~*'()")
+            guard let enc = cwd.addingPercentEncoding(withAllowedCharacters: allowed) else { return nil }
+            return "\(home)/.grok/sessions/\(enc)"
+        case "kimi":
+            // ~/.kimi-code/sessions/wd_<cwd末级目录>_<hash>/,同名多个取最近修改
+            guard let cwd else { return nil }
+            let root = "\(home)/.kimi-code/sessions"
+            let base = (cwd as NSString).lastPathComponent
+            let hits = ((try? fm.contentsOfDirectory(atPath: root)) ?? [])
+                .filter { $0.hasPrefix("wd_\(base)_") }
+                .map { name -> (String, Date) in
+                    let p = "\(root)/\(name)"
+                    let d = (try? fm.attributesOfItem(atPath: p))?[.modificationDate] as? Date ?? .distantPast
+                    return (p, d)
+                }
+                .sorted { $0.1 > $1.1 }
+            return hits.first?.0
+        case "goose":
+            return "\(home)/.local/share/goose/sessions"
+        case "hermes":
+            return "\(home)/.hermes/sessions"
+        case "openclaw":
+            return "\(home)/.openclaw/agents"
+        case "mimo":
+            return "\(home)/.local/share/mimocode"
         default:
             return nil
         }
     }
 
-    /** 文件或目录下最新的 mtime */
-    private func newestMtime(at path: String) -> Date? {
+    private func artifactDepth(_ harness: String) -> Int {
+        switch harness {
+        case "pi", "grok", "mimo": return 2
+        case "kimi", "openclaw": return 3
+        default: return 1
+        }
+    }
+
+    /** 文件或目录下最新的 mtime(深度受限递归,条目上限防大目录) */
+    private func newestMtime(at path: String, depth: Int = 1, budget: inout Int) -> Date? {
         let fm = FileManager.default
         var isDir: ObjCBool = false
         guard fm.fileExists(atPath: path, isDirectory: &isDir) else { return nil }
-        if !isDir.boolValue {
-            return (try? fm.attributesOfItem(atPath: path))?[.modificationDate] as? Date
-        }
-        guard let names = try? fm.contentsOfDirectory(atPath: path) else { return nil }
-        var newest: Date?
-        for n in names {
-            if let d = (try? fm.attributesOfItem(atPath: "\(path)/\(n)"))?[.modificationDate] as? Date {
+        let own = (try? fm.attributesOfItem(atPath: path))?[.modificationDate] as? Date
+        if !isDir.boolValue || depth <= 0 || budget <= 0 { return own }
+        var newest = own
+        for n in (try? fm.contentsOfDirectory(atPath: path)) ?? [] {
+            if budget <= 0 { break }
+            budget -= 1
+            if let d = newestMtime(at: "\(path)/\(n)", depth: depth - 1, budget: &budget) {
                 if newest == nil || d > newest! { newest = d }
             }
         }

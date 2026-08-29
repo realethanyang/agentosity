@@ -18,7 +18,16 @@ const HARNESSES = [
   ["codex", "codex"],
   ["opencode", "opencode"],
   ["gemini", "gemini-cli"],
+  ["pi", "pi"],
+  ["kimi", "kimi"],
+  ["goose", "goose"],
+  ["hermes", "hermes"],
+  ["openclaw", "openclaw"],
+  ["grok", "grok"],
+  ["mimo", "mimo"],
 ];
+
+const ARTIFACT_DEPTH = { pi: 2, grok: 2, mimo: 2, kimi: 3, openclaw: 3 };
 
 function sh(cmd, args) {
   try {
@@ -69,21 +78,55 @@ function sessionArtifact(harness, cwd) {
       return join(home, ".local", "share", "opencode", "opencode.db-wal");
     case "gemini-cli":
       return cwd ? join(home, ".gemini", "tmp", createHash("sha256").update(cwd).digest("hex")) : null;
+    case "pi": {
+      if (!cwd) return null;
+      try {
+        const root = join(home, ".pi", "agent", "sessions");
+        const slug = cwd.replace(/\//g, "-");
+        const hits = readdirSync(root).filter((d) => d.includes(slug)).sort((a, b) => a.length - b.length);
+        return hits[0] ? join(root, hits[0]) : null;
+      } catch {
+        return null;
+      }
+    }
+    case "grok":
+      return cwd ? join(home, ".grok", "sessions", encodeURIComponent(cwd)) : null;
+    case "kimi": {
+      if (!cwd) return null;
+      try {
+        const root = join(home, ".kimi-code", "sessions");
+        const base = cwd.split("/").filter(Boolean).pop() ?? "";
+        const hits = readdirSync(root)
+          .filter((d) => d.startsWith(`wd_${base}_`))
+          .map((d) => ({ p: join(root, d), m: statSync(join(root, d)).mtimeMs }))
+          .sort((a, b) => b.m - a.m);
+        return hits[0]?.p ?? null;
+      } catch {
+        return null;
+      }
+    }
+    case "goose":
+      return join(home, ".local", "share", "goose", "sessions");
+    case "hermes":
+      return join(home, ".hermes", "sessions");
+    case "openclaw":
+      return join(home, ".openclaw", "agents");
+    case "mimo":
+      return join(home, ".local", "share", "mimocode");
     default:
       return null;
   }
 }
 
-function newestMtimeMs(path) {
+function newestMtimeMs(path, depth = 1, budget = { n: 400 }) {
   try {
     const st = statSync(path);
-    if (st.isFile()) return st.mtimeMs;
-    let newest = 0;
+    if (st.isFile() || depth <= 0 || budget.n <= 0) return st.mtimeMs;
+    let newest = st.mtimeMs;
     for (const f of readdirSync(path)) {
-      try {
-        const m = statSync(join(path, f)).mtimeMs;
-        if (m > newest) newest = m;
-      } catch { /* 忽略单个文件错误 */ }
+      if (budget.n-- <= 0) break;
+      const m = newestMtimeMs(join(path, f), depth - 1, budget);
+      if (m > newest) newest = m;
     }
     return newest;
   } catch {
@@ -187,7 +230,7 @@ export async function runRadar() {
       if (!active) {
         const a = sessionArtifact(t.harness, t.cwd);
         if (a && artifactCount.get(a) === 1 && existsSync(a)) {
-          if (Date.now() - newestMtimeMs(a) < 90_000) active = true;
+          if (Date.now() - newestMtimeMs(a, ARTIFACT_DEPTH[t.harness] ?? 1) < 90_000) active = true;
         }
       }
       if (active) t.activeSeconds += TICK_MS / 1000;
