@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Agentosity 兜底 icon:Neo-Brutalism 黄底黑边 + 闪电(在干活的符号) -->
+  <defs>
+    <clipPath id="squircle">
+      <rect x="60" y="60" width="904" height="904" rx="200"/>
+    </clipPath>
+  </defs>
+  <!-- 硬阴影 -->
+  <rect x="92" y="92" width="904" height="904" rx="200" fill="#111111"/>
+  <!-- 主体 -->
+  <rect x="60" y="60" width="904" height="904" rx="200" fill="#FFD93D" stroke="#111111" stroke-width="28"/>
+  <!-- 闪电:粗犷几何,略微左倾 -->
+  <path d="M 596 168 L 330 568 L 494 568 L 428 856 L 706 428 L 536 428 Z"
+        fill="#111111"/>
+  <!-- 右下角小打卡点:考勤语义的一点私货 -->
+  <circle cx="756" cy="790" r="58" fill="#111111"/>
+  <circle cx="756" cy="790" r="34" fill="#6BCB77"/>
+</svg>
