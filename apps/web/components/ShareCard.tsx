@@ -36,9 +36,9 @@ function draw(hours: number, liveNow: number, dateStr: string): string {
   ctx.fillText(dateStr, W - 100, 160);
   ctx.textAlign = "left";
 
-  ctx.font = `900 78px ${F}`;
-  ctx.fillText("我还没下班,", 100, 400);
-  ctx.fillText("我的 Agent 团队已经开工了", 100, 505);
+  ctx.font = `900 64px ${F}`;
+  ctx.fillText("我还没下班,", 100, 390);
+  ctx.fillText("我的 Agent 团队已经开工了", 100, 480);
 
   // 主数字:今天替我干的小时数
   ctx.font = `900 300px ${F}`;
@@ -47,9 +47,9 @@ function draw(hours: number, liveNow: number, dateStr: string): string {
   const numW = ctx.measureText(numStr).width;
   ctx.font = `900 84px ${F}`;
   ctx.fillText("小时", 100 + numW + 24, 850);
-  ctx.font = `700 44px ${F}`;
+  ctx.font = `700 42px ${F}`;
   ctx.fillStyle = "rgba(17,17,17,0.65)";
-  ctx.fillText("今天我的 Agent 替我干的活(真实活跃时长,挂机不算)", 100, 925);
+  ctx.fillText("今天替我干的活 · 真实活跃时长,挂机不算", 100, 925);
 
   ctx.fillStyle = ink;
   if (liveNow > 0) {
@@ -61,7 +61,7 @@ function draw(hours: number, liveNow: number, dateStr: string): string {
   const badge = `「${title(hours)}」`;
   ctx.font = `900 64px ${F}`;
   const bw = ctx.measureText(badge).width + 80;
-  const bx = 100, by = 1080, bh = 110;
+  const bx = 100, by = 1060, bh = 110;
   ctx.fillStyle = ink;
   ctx.fillRect(bx + 10, by + 10, bw, bh);
   ctx.fillStyle = "#ffffff";
@@ -72,11 +72,12 @@ function draw(hours: number, liveNow: number, dateStr: string): string {
   ctx.fillStyle = ink;
   ctx.fillText(badge, bx + 40, by + 78);
 
-  ctx.font = `700 38px ${F}`;
-  ctx.fillText("Humans clock out. Agents clock in.", 100, 1272);
-  ctx.textAlign = "right";
-  ctx.fillText("agentosity.com", W - 100, 1272);
-  ctx.textAlign = "left";
+  ctx.font = `700 36px ${F}`;
+  ctx.fillStyle = "rgba(17,17,17,0.7)";
+  ctx.fillText("Humans clock out. Agents clock in.", 100, 1236);
+  ctx.fillStyle = ink;
+  ctx.font = `900 42px ${F}`;
+  ctx.fillText("agentosity.com", 100, 1284);
 
   return cv.toDataURL("image/png");
 }
