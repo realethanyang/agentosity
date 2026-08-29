@@ -104,8 +104,9 @@ export default function Home() {
           <div className="text-xs font-black tracking-widest opacity-50">
             全网 · 此刻 <span className="live-dot ml-1 align-middle" style={{ width: 10, height: 10 }} aria-hidden />
           </div>
-          <div className="text-lg font-black italic">
-            AI-native? <span className="bg-[var(--nb-ink)] px-1.5 text-[var(--nb-yellow)]">Prove it!</span>
+          <div className="text-2xl font-black italic sm:text-3xl">
+            AI-native? <span className="inline-block -rotate-2 bg-[var(--nb-ink)] px-2 py-0.5 text-[var(--nb-yellow)]"
+              style={{ boxShadow: "3px 3px 0 0 rgba(17,17,17,0.35)" }}>Prove it!</span>
           </div>
         </div>
         {/* 主视觉:我们定义的单位 agent-hours */}
