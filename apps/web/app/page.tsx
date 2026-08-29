@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { fmtMinutes } from "@/lib/time";
+import { fmtMinutes, shanghaiNow } from "@/lib/time";
 import { deviceId } from "@/lib/device";
 import { freshAuthHeaders } from "@/lib/auth-client";
 
@@ -14,7 +14,12 @@ type Live = {
 };
 import AgentBoardTable, { AgentBoardRow } from "@/components/AgentBoardTable";
 
-type Top3 ={ rank: number; name: string; avg_minutes: number; count: number };
+type Top3 = { rank: number; name: string; avg_minutes: number; count: number };
+type HumanBoard = {
+  day: string;
+  top3: Top3[];
+  stats: { today_avg: number | null; day_avg: number | null; week_avg: number | null };
+};
 type Pulse = {
   checked_out: number;
   still_working: number;
@@ -37,7 +42,10 @@ type MyCompany = {
 export default function Home() {
   const [live, setLive] = useState<Live | null>(null);
   const [board, setBoard] = useState<AgentBoardRow[] | null>(null);
-  const [humanTop, setHumanTop] = useState<Top3[] | null>(null);
+  const [humanBoard, setHumanBoard] = useState<HumanBoard | null>(null);
+  const [punchBusy, setPunchBusy] = useState(false);
+  const [punchDone, setPunchDone] = useState<{ time: string; rankGlobal: number | null } | null>(null);
+  const [punchErr, setPunchErr] = useState<string | null>(null);
   const [pulse, setPulse] = useState<Pulse | null>(null);
   const [my, setMy] = useState<MyAgents | null>(null);
   const [myToday, setMyToday] = useState<MyToday | null>(null);
@@ -50,7 +58,7 @@ export default function Home() {
         setLive(d.live);
         setBoard(d.board);
       });
-      fetch("/api/board").then((r) => r.json()).then((d) => setHumanTop(d.top3));
+      fetch("/api/board").then((r) => r.json()).then(setHumanBoard);
       fetch("/api/pulse").then((r) => r.json()).then(setPulse);
 
       const headers = await freshAuthHeaders();
@@ -66,6 +74,25 @@ export default function Home() {
     const t = setInterval(load, 30_000);
     return () => clearInterval(t);
   }, []);
+
+  /** 首页一键打卡:成功后就地刷新脉搏与人类榜 */
+  async function punch() {
+    setPunchBusy(true);
+    setPunchErr(null);
+    const r = await fetch("/api/checkin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await freshAuthHeaders()) },
+      body: JSON.stringify({ deviceId: deviceId() }),
+    });
+    const d = await r.json();
+    setPunchBusy(false);
+    if (d.ok) {
+      setPunchDone({ time: d.clocked_local, rankGlobal: d.rank_global });
+      setMyToday({ checked_in: true, clocked_local: d.clocked_local });
+      fetch("/api/pulse").then((res) => res.json()).then(setPulse).catch(() => {});
+      fetch("/api/board").then((res) => res.json()).then(setHumanBoard).catch(() => {});
+    } else setPunchErr(d.error ?? "打卡失败,再试一次");
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-16">
@@ -120,7 +147,7 @@ export default function Home() {
               {myToday?.checked_in ? (
                 <>✅ 我 {myToday.clocked_local} 已下班,Agent 还在干</>
               ) : (
-                <Link href="/me" className="underline">我还没打卡 · 去下班 →</Link>
+                <a href="#human-board" className="underline">我还没打卡 · 一键打卡在下方 ↓</a>
               )}
             </div>
           </div>
@@ -190,21 +217,64 @@ export default function Home() {
         {board && <AgentBoardTable rows={board} limit={10} />}
       </section>
 
-      <section className="nb-card mt-4 bg-white p-5">
+      <section id="human-board" className="nb-card mt-4 bg-white p-5">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-xl font-black">早下班榜<span className="ml-1 text-xs font-bold opacity-50">今日实时</span></h2>
-          <Link href="/leaderboard?tab=human" className="text-xs font-bold underline opacity-60">完整榜单 →</Link>
+          <Link href="/leaderboard?tab=human" className="text-xs font-bold underline opacity-60">行业/城市分榜 →</Link>
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-          {(humanTop ?? []).map((t, i) => (
-            <div key={t.rank} className="nb-card p-2"
-              style={{ background: ["var(--nb-yellow)", "#e8e8e8", "var(--nb-orange)"][i] }}>
-              <div className="text-lg">{["🥇", "🥈", "🥉"][i]}</div>
-              <div className="truncate text-sm font-black">{t.name}</div>
-              <div className="text-lg font-black tabular-nums">{fmtMinutes(t.avg_minutes)}</div>
-            </div>
-          ))}
-        </div>
+
+        {/* 一键打卡 CTA:人类层唯一的手动动作,按时间分级出现 */}
+        {loggedIn && (punchDone ? (
+          <div className="nb-card mt-3 bg-[var(--nb-green)] p-3 text-center font-black">
+            ✅ 下班快乐!{punchDone.time.slice(-5)}
+            {punchDone.rankGlobal != null && ` · 你是全网今天第 ${punchDone.rankGlobal} 个下班的`}
+          </div>
+        ) : myToday?.checked_in ? null : shanghaiNow().hour >= 5 && shanghaiNow().hour < 12 ? null : !myCompany?.company ? (
+          <Link href="/me" className="nb-btn mt-3 inline-block bg-white px-5 py-2 text-sm font-black">
+            绑定公司后可一键打卡 →
+          </Link>
+        ) : shanghaiNow().hour >= 12 && shanghaiNow().hour < 17 ? (
+          <button onClick={punch} disabled={punchBusy}
+            className="nb-btn mt-3 bg-white px-5 py-2 font-black disabled:opacity-40">
+            {punchBusy ? "打卡中…" : "我现在下班 🏃"}
+          </button>
+        ) : (
+          <button onClick={punch} disabled={punchBusy}
+            className="nb-btn mt-3 w-full bg-[var(--nb-pink)] py-4 text-2xl font-black text-white disabled:opacity-40">
+            {punchBusy ? "打卡中…" : "我下班了 🎉"}
+          </button>
+        ))}
+        {punchErr && <p className="mt-2 text-sm font-bold text-red-600">{punchErr}</p>}
+
+        {!humanBoard || humanBoard.top3.length === 0 ? (
+          <p className="mt-3 text-sm font-bold opacity-50">这个榜还空着 —— 今天第一个打卡的人就是榜一。</p>
+        ) : (
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            {humanBoard.top3.map((t, i) => (
+              <div key={t.rank} className="nb-card p-2"
+                style={{ background: ["var(--nb-yellow)", "#e8e8e8", "var(--nb-orange)"][i] }}>
+                <div className="text-lg">{["🥇", "🥈", "🥉"][i]}</div>
+                <div className="truncate text-sm font-black">{t.name}</div>
+                <div className="text-lg font-black tabular-nums">{fmtMinutes(t.avg_minutes)}</div>
+                <div className="text-[10px] font-bold opacity-60">平均下班 · {t.count} 人</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {humanBoard && (
+          <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+            {[
+              { label: "全网今日平均下班", v: humanBoard.stats.day_avg },
+              { label: "全网近 7 天平均", v: humanBoard.stats.week_avg },
+            ].map((s) => (
+              <div key={s.label} className="nb-card bg-white p-2">
+                <div className="text-lg font-black tabular-nums">{fmtMinutes(s.v)}</div>
+                <div className="text-[10px] font-bold opacity-60">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* 接入 CTA */}

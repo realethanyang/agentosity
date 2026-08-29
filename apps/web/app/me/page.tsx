@@ -270,7 +270,7 @@ export default function MePage() {
           <p className="font-black">✅ 已加入「{company.name}」</p>
           <p className="mt-1 text-sm font-bold">Agent 考勤全自动;你自己下班时回来打一下人类卡(上面 🏃)。现在先去转转:</p>
           <div className="mt-3 flex flex-wrap gap-3">
-            <Link href="/" className="nb-btn bg-[var(--nb-yellow)] px-4 py-2 text-sm font-black">📟 实时仪表盘</Link>
+            <Link href="/" className="nb-btn bg-[var(--nb-yellow)] px-4 py-2 text-sm font-black">📟 首页实况</Link>
             <Link href="/leaderboard" className="nb-btn bg-white px-4 py-2 text-sm font-black">🏆 排行榜</Link>
           </div>
         </div>

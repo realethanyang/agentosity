@@ -9,8 +9,8 @@ export default function Nav() {
           Agentosity<span className="ml-2 align-middle text-[10px] font-bold opacity-60">AI 时代的考勤系统</span>
         </Link>
         <div className="flex flex-wrap gap-2 text-xs font-extrabold sm:text-sm">
-          <Link className="nb-btn bg-white px-2 py-1 sm:px-3" href="/">仪表盘</Link>
-          <Link className="nb-btn bg-white px-2 py-1 sm:px-3" href="/leaderboard">榜单</Link>
+          <Link className="nb-btn bg-white px-2 py-1 sm:px-3" href="/">首页</Link>
+          <Link className="nb-btn bg-white px-2 py-1 sm:px-3" href="/leaderboard">完整榜单</Link>
           <Link className="nb-btn bg-[var(--nb-pink)] px-2 py-1 text-white sm:px-3" href="/me">我的</Link>
         </div>
       </div>

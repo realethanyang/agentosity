@@ -274,7 +274,7 @@ export default function CheckinPage() {
           )}
           <div className="mt-3 flex flex-wrap gap-3">
             <Link href="/" className="nb-btn bg-[var(--nb-yellow)] px-4 py-2 text-sm font-black">
-              📟 实时仪表盘
+              📟 首页实况
             </Link>
             <Link href="/leaderboard" className="nb-btn bg-white px-4 py-2 text-sm font-black">
               🏆 排行榜
