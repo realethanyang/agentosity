@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await db()
     .from("profiles")
-    .select("company_changed_at, companies(id, name)")
+    .select("company_changed_at, handle, companies(id, name)")
     .eq("user_token", token)
     .maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -28,21 +28,46 @@ export async function GET(req: NextRequest) {
   const nextChangeAt = changedAt ? new Date(changedAt + CHANGE_INTERVAL_MS) : null;
   return NextResponse.json({
     company,
+    handle: data?.handle ?? null,
     can_change: !company || !nextChangeAt || Date.now() >= nextChangeAt.getTime(),
     next_change_at: nextChangeAt && Date.now() < nextChangeAt.getTime() ? nextChangeAt.toISOString().slice(0, 10) : null,
   });
 }
 
-/** 绑定/改绑公司。首绑免费;改绑每周一次。body: { companyId, deviceId? } */
+/** 绑定/改绑公司或设置个人旗号。首绑免费;改绑公司每周一次。body: { companyId?, handle?, deviceId? } */
 export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const authToken = await userTokenFromRequest(req);
   if (process.env.REQUIRE_LOGIN === "1" && !authToken) {
-    return NextResponse.json({ error: "需要登录后绑定公司" }, { status: 401 });
+    return NextResponse.json({ error: "需要登录后绑定" }, { status: 401 });
   }
   const token = authToken ?? body?.deviceId ?? null;
   const companyId = body?.companyId;
-  if (!token || !companyId) return NextResponse.json({ error: "缺少身份 / companyId" }, { status: 400 });
+  const handle = typeof body?.handle === "string" ? body.handle.trim() : null;
+  if (!token) return NextResponse.json({ error: "缺少身份" }, { status: 400 });
+
+  // 只设旗号(个人榜身份),不动公司绑定
+  if (handle !== null && !companyId) {
+    if (handle.length < 2 || handle.length > 20) {
+      return NextResponse.json({ error: "旗号长度 2–20 个字符" }, { status: 400 });
+    }
+    const { data: taken } = await db()
+      .from("profiles")
+      .select("user_token")
+      .ilike("handle", handle)
+      .neq("user_token", token)
+      .maybeSingle();
+    if (taken) return NextResponse.json({ error: "这个旗号被人抢先了,换一个" }, { status: 409 });
+    const { data: existing } = await db()
+      .from("profiles").select("user_token").eq("user_token", token).maybeSingle();
+    const { error } = existing
+      ? await db().from("profiles").update({ handle }).eq("user_token", token)
+      : await db().from("profiles").insert({ user_token: token, handle });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, handle });
+  }
+
+  if (!companyId) return NextResponse.json({ error: "缺少 companyId / handle" }, { status: 400 });
 
   const supa = db();
   const { data: existing } = await supa
