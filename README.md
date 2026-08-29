@@ -11,7 +11,7 @@
 
 ## 快速开始
 
-**mac(推荐)**:[下载菜单栏 App](https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.app.zip) → 登录 → 绑公司 → 一键接入。📡 进程雷达还会自动补录本机已开着的 Agent 会话。
+**mac(推荐)**:[下载菜单栏 App](https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.dmg) → 登录 → 绑公司 → 一键接入。📡 进程雷达还会自动补录本机已开着的 Agent 会话。
 
 **全平台(终端)**:
 

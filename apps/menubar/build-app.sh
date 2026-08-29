@@ -40,10 +40,22 @@ if security find-identity -p codesigning -v 2>/dev/null | grep -q "$DEV_ID"; the
   # --notarize:上传 Apple 公证 + 钉票(凭证在钥匙串 profile agentosity-notary)
   if [ "${1:-}" = "--notarize" ]; then
     ditto -c -k --keepParent "$APP" "$APP.zip"
-    xcrun notarytool submit "$APP.zip" --keychain-profile agentosity-notary --wait
+    NOUT=$(xcrun notarytool submit "$APP.zip" --keychain-profile agentosity-notary --wait)
+    echo "$NOUT" | grep -q "status: Accepted" || { echo "❌ notarization not accepted"; echo "$NOUT" | tail -3; exit 1; }
     xcrun stapler staple "$APP"
     ditto -c -k --keepParent "$APP" "$APP.zip"  # 重打包含票版本
-    echo "notarized + stapled: $APP.zip"
+    # DMG:mac 标准分发形态(拖进 Applications 的那个框)
+    DMGDIR=$(mktemp -d)
+    cp -R "$APP" "$DMGDIR/"
+    ln -s /Applications "$DMGDIR/Applications"
+    rm -f dist/Agentosity.dmg
+    hdiutil create -volname "Agentosity" -srcfolder "$DMGDIR" -ov -format UDZO dist/Agentosity.dmg -quiet
+    codesign --force --sign "$DEV_ID" dist/Agentosity.dmg || echo "(dmg 签名失败,不致命:内容物已签,公证以下面为准)"
+    DOUT=$(xcrun notarytool submit dist/Agentosity.dmg --keychain-profile agentosity-notary --wait)
+    echo "$DOUT" | grep -q "status: Accepted" || { echo "❌ dmg notarization not accepted"; echo "$DOUT" | tail -3; exit 1; }
+    xcrun stapler staple dist/Agentosity.dmg
+    rm -rf "$DMGDIR"
+    echo "notarized + stapled: $APP.zip + dist/Agentosity.dmg"
   fi
 else
   codesign --force --sign - "$APP" 2>/dev/null || true

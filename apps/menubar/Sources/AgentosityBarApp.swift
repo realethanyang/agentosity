@@ -401,9 +401,43 @@ final class Store: ObservableObject {
 
 // MARK: - App
 
+/** 从下载目录直接运行时,提示一键移入「应用程序」(mac 用户的肌肉记忆) */
+@MainActor
+func offerMoveToApplications() {
+    let path = Bundle.main.bundlePath
+    guard !path.hasPrefix("/Applications") else { return }
+    let alert = NSAlert()
+    alert.messageText = "把 Agentosity 移到「应用程序」?"
+    alert.informativeText = "App 目前在 \(URL(fileURLWithPath: path).deletingLastPathComponent().lastPathComponent) 文件夹运行。移到「应用程序」后更好找,也不会被误删。"
+    alert.addButton(withTitle: "移动并重新打开")
+    alert.addButton(withTitle: "暂不")
+    guard alert.runModal() == .alertFirstButtonReturn else { return }
+    let dest = "/Applications/Agentosity.app"
+    let fm = FileManager.default
+    try? fm.removeItem(atPath: dest)
+    do {
+        try fm.copyItem(atPath: path, toPath: dest)
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        p.arguments = [dest]
+        try? p.run()
+        try? fm.removeItem(atPath: path) // 尽力清理原位置
+        NSApplication.shared.terminate(nil)
+    } catch {
+        let e = NSAlert()
+        e.messageText = "移动失败"
+        e.informativeText = "你可以手动把 Agentosity 拖进「应用程序」文件夹。"
+        e.runModal()
+    }
+}
+
 @main
 struct AgentosityBarApp: App {
     @StateObject private var store = Store()
+
+    init() {
+        Task { @MainActor in offerMoveToApplications() }
+    }
 
     var body: some Scene {
         MenuBarExtra {

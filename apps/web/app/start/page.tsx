@@ -48,12 +48,12 @@ export default function StartPage() {
                   常驻实时数字 · 一键打卡 · 一键接入 · 📡 雷达自动补录已开着的会话
                 </p>
               </div>
-              <a href="https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.app.zip"
+              <a href="https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.dmg"
                 className="nb-btn bg-[var(--nb-ink)] px-5 py-2 font-black text-white">
                 下载 ↓
               </a>
             </div>
-            <p className="mt-2 text-xs font-bold opacity-50">已 Apple 公证,解压拖进「应用程序」,双击即用</p>
+            <p className="mt-2 text-xs font-bold opacity-50">已 Apple 公证 · 打开 DMG,把图标拖进 Applications,完事</p>
           </section>
           <button onClick={() => setShowCmd(!showCmd)} className="mt-3 text-xs font-bold underline opacity-60">
             {showCmd ? "收起" : "不想装 App?一条命令(全平台通用)→"}
