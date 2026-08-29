@@ -14,12 +14,20 @@ type Board = {
 const INDUSTRIES = ["互联网", "游戏", "AI", "硬件", "电商", "汽车", "内容", "消费"];
 const CITIES = ["北京", "上海", "深圳", "杭州", "广州"];
 
-type PersonalRow = { handle: string; active_hours: number; daa_today: number; live_now: number; working_now: number };
+type PersonalRow = {
+  handle: string;
+  active_hours: number;
+  daa_today: number;
+  human_avg_minutes: number | null;
+  leverage: number | null;
+  live_now: number;
+  working_now: number;
+};
 
 export default function LeaderboardPage() {
   const [tab, setTab] = useState<"agent" | "human" | "personal">("agent");
   const [pBoard, setPBoard] = useState<PersonalRow[] | null>(null);
-  const [pDays, setPDays] = useState<1 | 7>(1);
+  const [pDays, setPDays] = useState<1 | 7 | 30>(1);
   const [agentBoard, setAgentBoard] = useState<AgentBoardRow[] | null>(null);
   const [period, setPeriod] = useState<{ from: string; to: string; days: number } | null>(null);
   const [days, setDays] = useState<1 | 7 | 30>(1);
@@ -85,7 +93,11 @@ export default function LeaderboardPage() {
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <h2 className="text-xl font-black">个人榜<span className="ml-1 text-xs font-bold opacity-50">旗号制 · 与公司无关</span></h2>
             <div className="flex gap-1 text-xs font-extrabold">
-              {([{ d: 1, label: "今天" }, { d: 7, label: "近 7 天" }] as { d: 1 | 7; label: string }[]).map((o) => (
+              {([
+                { d: 1, label: "今天" },
+                { d: 7, label: "近 7 天" },
+                { d: 30, label: "近 30 天" },
+              ] as { d: 1 | 7 | 30; label: string }[]).map((o) => (
                 <button key={o.d} onClick={() => setPDays(o.d)}
                   className={`nb-btn px-2 py-0.5 ${pDays === o.d ? "bg-[var(--nb-yellow)]" : "bg-white"}`}>
                   {o.label}
@@ -98,12 +110,19 @@ export default function LeaderboardPage() {
           ) : pBoard.length === 0 ? (
             <p className="py-10 text-center font-bold opacity-50">还没人立旗号 —— 去「我的」页设一个,下一秒你就是榜一。</p>
           ) : (
-            <table className="mt-4 w-full min-w-[420px] text-sm">
+            <table className="mt-4 w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="text-left font-black" style={{ borderBottom: "3px solid var(--nb-ink)" }}>
                   <th className="py-2">#</th>
                   <th>旗号</th>
-                  <th className="text-right" title="真实干活时长,挂机不算">agent-hours{pDays === 1 ? "(今日)" : "(7天)"}</th>
+                  <th className="text-right" title="真实干活时长,挂机不算">
+                    agent-hours{pDays === 1 ? "(今日)" : `(${pDays}天)`}
+                  </th>
+                  <th className="text-right" title="Daily Active Agents:今天真实干过活的 Agent 会话数">DAA(今日)</th>
+                  <th className="text-right"
+                    title="Agentosity 指数 = 100×L/(L+1),L = agent-hours ÷ 你自己的人类工时。50 分 = AI 干的活和你打平">
+                    Agentosity 指数
+                  </th>
                   <th className="text-right" title="此刻:正在干活数/在岗总数">在岗</th>
                 </tr>
               </thead>
@@ -113,6 +132,17 @@ export default function LeaderboardPage() {
                     <td className="py-2 font-black">{i + 1}</td>
                     <td>🚩 {r.handle}</td>
                     <td className="text-right tabular-nums font-black">{r.active_hours} <span className="text-xs opacity-50">h</span></td>
+                    <td className="text-right tabular-nums">{r.daa_today}</td>
+                    <td className="text-right tabular-nums">
+                      {agentosityScore(r.leverage) != null ? (
+                        <span className="font-black"
+                          title={`你 ${r.human_avg_minutes != null ? fmtMinutes(r.human_avg_minutes) : "—"} 走 · 杠杆 ${r.leverage}`}>
+                          {agentosityScore(r.leverage)}
+                        </span>
+                      ) : (
+                        <span className="opacity-30" title="打过下班卡才能算">—</span>
+                      )}
+                    </td>
                     <td className="text-right">
                       {r.live_now > 0 ? (
                         <span className="bg-[var(--nb-green)] px-2 py-0.5 text-xs font-black tabular-nums">⚡{r.working_now}/{r.live_now}</span>
