@@ -8,7 +8,12 @@ import { freshAuthHeaders, authState, clearAuth } from "@/lib/auth-client";
 import ShareCardButton from "@/components/ShareCard";
 
 type Company = { id: string; name: string };
-type Profile = { company: Company | null; can_change: boolean; next_change_at: string | null };
+type Profile = { company: Company | null; handle: string | null; can_change: boolean; next_change_at: string | null };
+
+const ADJ = ["熬夜", "摸鱼", "闪电", "卷王", "佛系", "暴走", "低调", "赛博", "隐身", "满血"];
+const NOUN = ["船长", "厂长", "监工", "堂主", "指挥官", "练习生", "车间主任", "包工头", "司机", "掌门"];
+const suggestHandle = () =>
+  ADJ[Math.floor(Math.random() * ADJ.length)] + NOUN[Math.floor(Math.random() * NOUN.length)] + "#" + Math.floor(10 + Math.random() * 90);
 type MyRank = {
   found: boolean;
   no_data?: boolean;
@@ -70,6 +75,32 @@ export default function MePage() {
   }, [q]);
 
   const [justBound, setJustBound] = useState(false);
+  const [handleInput, setHandleInput] = useState("");
+  const [editingHandle, setEditingHandle] = useState(false);
+  const [handleBusy, setHandleBusy] = useState(false);
+
+  useEffect(() => {
+    if (profile && !profile.handle && !handleInput) setHandleInput(suggestHandle());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile]);
+
+  async function saveHandle() {
+    const h = handleInput.trim();
+    if (h.length < 2) return setError("旗号至少 2 个字符");
+    setHandleBusy(true);
+    setError(null);
+    const r = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...(await freshAuthHeaders()) },
+      body: JSON.stringify({ handle: h, deviceId: deviceId() }),
+    });
+    const d = await r.json();
+    setHandleBusy(false);
+    if (r.ok) {
+      setEditingHandle(false);
+      load();
+    } else setError(d.error ?? "保存失败");
+  }
 
   async function bindCompany(c: Company) {
     setError(null);
@@ -132,14 +163,41 @@ export default function MePage() {
 
   const company = profile?.company ?? null;
 
+  const handleSection = (
+    <section className="nb-card mt-4 bg-white p-5">
+      <div className="text-xs font-black opacity-60">🚩 个人旗号 —— 你在个人榜上的名字,跟公司无关,想叫啥叫啥</div>
+      {profile?.handle && !editingHandle ? (
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xl font-black">🚩 {profile.handle}</span>
+          <button onClick={() => { setEditingHandle(true); setHandleInput(profile.handle ?? ""); }}
+            className="nb-btn bg-white px-3 py-1 text-sm font-bold">改名</button>
+        </div>
+      ) : (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <input value={handleInput} onChange={(e) => setHandleInput(e.target.value)}
+            className="flex-1 p-3 font-bold outline-none" style={{ border: "3px solid var(--nb-ink)", minWidth: 180 }} />
+          <button onClick={() => setHandleInput(suggestHandle())} className="nb-btn bg-white px-3 py-2 text-sm font-bold">🎲 换一个</button>
+          <button onClick={saveHandle} disabled={handleBusy}
+            className="nb-btn bg-[var(--nb-green)] px-4 py-2 font-black disabled:opacity-40">
+            {handleBusy ? "…" : profile?.handle ? "保存" : "就用这个,上榜 →"}
+          </button>
+        </div>
+      )}
+      {!profile?.handle && (
+        <p className="mt-1 text-xs font-bold opacity-50">设好旗号,你就已经在个人榜上了(帮你起了一个,不满意随便改)</p>
+      )}
+    </section>
+  );
+
   const bindSection = (
     <section className="nb-card mt-4 bg-white p-5">
       <div className="text-xs font-black opacity-60">
-        {company ? "公司绑定(改绑每周一次)" : "先给自己立个旗号 —— 榜单、打卡、Agent 数据都挂在它下面"}
+        {company ? "公司绑定(改绑每周一次)" : "🏢 公司绑定 —— 想跟别家比拼,就报个门派"}
       </div>
       {!company && (
         <p className="mt-1 text-xs font-bold opacity-60">
-          🔒 匿名上榜:对外只出现公司名和聚合数字,个人永不露名。不方便写真名,代号/战队名也行,以后每周可改一次。
+          🔒 匿名上榜:对外只出现公司名和聚合数字,个人永不露名。不方便写真名,代号/战队名也行。
+          <span className="opacity-80">暂时不想绑?没关系,设好旗号就已经在个人榜上了。</span>
         </p>
       )}
       {company && !picking ? (
@@ -180,7 +238,8 @@ export default function MePage() {
     <main className="mx-auto max-w-xl px-4 pb-16 pt-8">
       <h1 className="text-3xl font-black">我的</h1>
 
-      {/* 未绑定:绑定卡置顶,别让新用户找输入框 */}
+      {/* 新用户:旗号(个人榜门票)和公司绑定置顶,别让人找输入框 */}
+      {profile && !profile.handle && handleSection}
       {!company && bindSection}
 
       {/* 我的 Agent 战报:每屏一个主数字,其余降级;考勤是自动的,所以放第一位 */}
@@ -277,7 +336,8 @@ export default function MePage() {
         )}
       </section>
 
-      {/* 公司绑定(已绑定时排后面;未绑定时上面那份置顶版已渲染) */}
+      {/* 已设置的旗号/已绑定的公司排后面 */}
+      {profile?.handle && handleSection}
       {company && bindSection}
 
       {/* 绑定完成:接住用户 */}
