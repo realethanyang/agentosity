@@ -5,6 +5,7 @@ import Link from "next/link";
 import { deviceId } from "@/lib/device";
 import { fmtMinutes, shanghaiNow } from "@/lib/time";
 import { freshAuthHeaders, authState, clearAuth } from "@/lib/auth-client";
+import ShareCardButton from "@/components/ShareCard";
 
 type Company = { id: string; name: string };
 type Profile = { company: Company | null; can_change: boolean; next_change_at: string | null };
@@ -131,9 +132,56 @@ export default function MePage() {
 
   const company = profile?.company ?? null;
 
+  const bindSection = (
+    <section className="nb-card mt-4 bg-white p-5">
+      <div className="text-xs font-black opacity-60">
+        {company ? "公司绑定(改绑每周一次)" : "先给自己立个旗号 —— 榜单、打卡、Agent 数据都挂在它下面"}
+      </div>
+      {!company && (
+        <p className="mt-1 text-xs font-bold opacity-60">
+          🔒 匿名上榜:对外只出现公司名和聚合数字,个人永不露名。不方便写真名,代号/战队名也行,以后每周可改一次。
+        </p>
+      )}
+      {company && !picking ? (
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xl font-black">🏢 {company.name}</span>
+          {profile?.can_change ? (
+            <button onClick={() => setPicking(true)} className="nb-btn bg-white px-3 py-1 text-sm font-bold">换一家</button>
+          ) : (
+            <span className="text-xs font-bold opacity-50">下次可改:{profile?.next_change_at}</span>
+          )}
+        </div>
+      ) : (
+        <div className="mt-2">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索公司名 / 代号…"
+            className="w-full p-3 font-bold outline-none" style={{ border: "3px solid var(--nb-ink)" }} />
+          {picking && (
+            <button onClick={() => setPicking(false)} className="mt-1 text-xs font-bold underline opacity-60">取消</button>
+          )}
+          {q.trim() && (
+            <div className="mt-1">
+              {results.map((c) => (
+                <button key={c.id} onClick={() => bindCompany(c)}
+                  className="block w-full border-b-2 border-dashed border-black/20 p-2 text-left font-bold hover:bg-[var(--nb-yellow)]">
+                  {c.name}
+                </button>
+              ))}
+              <button onClick={createCompany} className="mt-1 block w-full p-2 text-left text-sm font-bold text-[var(--nb-blue)]">
+                ＋ 没找到?创建「{q.trim()}」
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+
   return (
     <main className="mx-auto max-w-xl px-4 pb-16 pt-8">
       <h1 className="text-3xl font-black">我的</h1>
+
+      {/* 未绑定:绑定卡置顶,别让新用户找输入框 */}
+      {!company && bindSection}
 
       {/* 我的 Agent 战报:每屏一个主数字,其余降级;考勤是自动的,所以放第一位 */}
       <section className="nb-card mt-5 bg-[var(--nb-yellow)] p-5">
@@ -147,6 +195,7 @@ export default function MePage() {
                 <span className="ml-3 text-sm font-bold opacity-60">此刻 {myAgents.live_now} 个还在跑</span>
               )}
             </p>
+            <ShareCardButton hours={myAgents.active_hours} liveNow={myAgents.live_now} />
           </>
         ) : (
           <p className="text-sm font-bold opacity-70">
@@ -228,46 +277,8 @@ export default function MePage() {
         )}
       </section>
 
-      {/* 公司绑定 */}
-      <section className="nb-card mt-4 bg-white p-5">
-        <div className="text-xs font-black opacity-60">公司绑定(改绑每周一次)</div>
-        {!company && (
-          <p className="mt-1 text-xs font-bold opacity-60">
-            🔒 匿名上榜:对外只出现公司名和聚合数字,个人永不露名。不方便写真名,代号/战队名也行。
-          </p>
-        )}
-        {company && !picking ? (
-          <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xl font-black">🏢 {company.name}</span>
-            {profile?.can_change ? (
-              <button onClick={() => setPicking(true)} className="nb-btn bg-white px-3 py-1 text-sm font-bold">换一家</button>
-            ) : (
-              <span className="text-xs font-bold opacity-50">下次可改:{profile?.next_change_at}</span>
-            )}
-          </div>
-        ) : (
-          <div className="mt-2">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索公司名…"
-              className="w-full p-3 font-bold outline-none" style={{ border: "3px solid var(--nb-ink)" }} />
-            {picking && (
-              <button onClick={() => setPicking(false)} className="mt-1 text-xs font-bold underline opacity-60">取消</button>
-            )}
-            {q.trim() && (
-              <div className="mt-1">
-                {results.map((c) => (
-                  <button key={c.id} onClick={() => bindCompany(c)}
-                    className="block w-full border-b-2 border-dashed border-black/20 p-2 text-left font-bold hover:bg-[var(--nb-yellow)]">
-                    {c.name}
-                  </button>
-                ))}
-                <button onClick={createCompany} className="mt-1 block w-full p-2 text-left text-sm font-bold text-[var(--nb-blue)]">
-                  ＋ 没找到?创建「{q.trim()}」
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
+      {/* 公司绑定(已绑定时排后面;未绑定时上面那份置顶版已渲染) */}
+      {company && bindSection}
 
       {/* 绑定完成:接住用户 */}
       {justBound && company && !picking && (

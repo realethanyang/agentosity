@@ -202,7 +202,7 @@ export default function Home() {
             登录后解锁<span className="font-black">你的 Agent 战报</span>和
             <span className="font-black">你全公司的实时视角</span> —— 谁下班了、谁的 Agent 在干活,尽在掌握。
           </p>
-          <Link href="/login" className="nb-btn bg-[var(--nb-pink)] px-5 py-2 font-black text-white">
+          <Link href="/login?next=/me" className="nb-btn bg-[var(--nb-pink)] px-5 py-2 font-black text-white">
             登录 →
           </Link>
         </section>

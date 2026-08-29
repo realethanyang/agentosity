@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [stage, setStage] = useState<"email" | "code" | "done">("email");
+  const [justLoggedIn, setJustLoggedIn] = useState(false);
 
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("device");
@@ -23,6 +24,7 @@ export default function LoginPage() {
         mail = JSON.parse(atob(oauthToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).email ?? "";
       } catch { /* email 解析失败不致命 */ }
       saveAuth({ email: mail, token: oauthToken, refresh: oauthRefresh ?? undefined });
+      setJustLoggedIn(true);
       history.replaceState(null, "", window.location.pathname + window.location.search); // 清掉 hash
       // 设备历史并入账号
       fetch("/api/auth/merge", {
@@ -71,15 +73,16 @@ export default function LoginPage() {
     setFromCli(params.get("from") === "cli" || (n ?? "").includes("from=cli"));
   }, []);
 
-  // 登录完成不让用户干等:CLI 流跳绑定页,普通流跳 next(App 设备流留在本页看"回到 App"提示)
+  // 登录完成不让用户干等:CLI 流跳绑定页,普通流跳 next(没有 next 就去 /me 绑公司)。
+  // 只在"这次访问里刚登录成功"时跳,已登录状态直接打开 /login 的人留在本页(还能退出登录)。
   useEffect(() => {
     if (stage !== "done") return;
     const t = setTimeout(() => {
       if (fromCli && (!deviceCode || deviceApproved)) window.location.replace("/checkin?from=cli");
-      else if (next && !deviceCode) window.location.replace(next);
+      else if (!deviceCode && (justLoggedIn || next)) window.location.replace(next ?? "/me");
     }, 800);
     return () => clearTimeout(t);
-  }, [stage, deviceApproved, fromCli, next, deviceCode]);
+  }, [stage, deviceApproved, fromCli, next, deviceCode, justLoggedIn]);
 
   function friendly(msg: string): string {
     if (/security purposes/i.test(msg)) return "发送太频繁了,等 60 秒再试";
@@ -124,6 +127,7 @@ export default function LoginPage() {
     setBusy(false);
     if (d.ok) {
       saveAuth({ email: d.email, token: d.access_token, refresh: d.refresh_token });
+      setJustLoggedIn(true);
       setStage("done");
       if (deviceCode) await approveWith({ Authorization: `Bearer ${d.access_token}` }, deviceCode);
     } else setError(friendly(d.error ?? "验证失败"));
