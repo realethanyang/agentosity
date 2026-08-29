@@ -285,6 +285,9 @@ export default function CheckinPage() {
 
       {/* 大按钮 */}
       <section className="mt-8 text-center">
+        <p className="mb-2 text-xs font-black opacity-60">
+          🤖 Agent 考勤全自动,不用打卡 —— 这颗按钮是给你的:下班那一刻按一下
+        </p>
         <button
           disabled={!company || busy}
           onClick={() => punch()}

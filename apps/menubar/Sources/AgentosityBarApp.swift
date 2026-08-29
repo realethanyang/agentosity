@@ -98,7 +98,7 @@ func jwtExpMs(_ token: String) -> Double {
     return exp * 1000
 }
 
-let APP_VERSION = "0.3.0"
+let APP_VERSION = "0.3.1"
 
 // MARK: - 品牌色
 
@@ -627,7 +627,7 @@ struct PopoverView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("⚡️ 你的 Agent 今天干了 \(String(format: "%.1f", my.active_hours)) 小时")
                     .font(.system(size: 13, weight: .heavy))
-                Text("会话 \(my.sessions) 个 · 在岗 \(String(format: "%.1f", my.session_hours))h · 此刻 \(my.live_now) 个在跑")
+                Text(my.live_now > 0 ? "此刻 \(my.live_now) 个还在跑 · 考勤全自动" : "考勤全自动,开工自动记")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
@@ -649,6 +649,9 @@ struct PopoverView: View {
                 }
                 .padding(.vertical, 2)
             } else {
+                Text("🤖 Agent 考勤全自动 —— 这颗按钮是给你的,下班那刻按")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
                 Button {
                     if store.company == nil {
                         openCheckinPage() // 没绑公司 → 去网页绑定

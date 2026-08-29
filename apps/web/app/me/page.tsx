@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { deviceId } from "@/lib/device";
-import { fmtMinutes } from "@/lib/time";
+import { fmtMinutes, shanghaiNow } from "@/lib/time";
 import { freshAuthHeaders, authState, clearAuth } from "@/lib/auth-client";
 
 type Company = { id: string; name: string };
@@ -135,8 +135,31 @@ export default function MePage() {
     <main className="mx-auto max-w-xl px-4 pb-16 pt-8">
       <h1 className="text-3xl font-black">我的</h1>
 
-      {/* 打卡区 */}
-      <section className="nb-card mt-5 bg-white p-5">
+      {/* 我的 Agent 战报:每屏一个主数字,其余降级;考勤是自动的,所以放第一位 */}
+      <section className="nb-card mt-5 bg-[var(--nb-yellow)] p-5">
+        {myAgents && myAgents.sessions > 0 ? (
+          <>
+            <p className="text-sm font-bold">🤖 你的 Agent 今天替你干了 <span className="text-xs opacity-50">(考勤全自动)</span></p>
+            <p className="mt-1 tabular-nums">
+              <span className="text-4xl font-black">{myAgents.active_hours}</span>
+              <span className="ml-1 text-lg font-black">小时</span>
+              {myAgents.live_now > 0 && (
+                <span className="ml-3 text-sm font-bold opacity-60">此刻 {myAgents.live_now} 个还在跑</span>
+              )}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm font-bold opacity-70">
+            还没有 Agent 数据 —— <Link href="/start" className="underline">接入考勤 →</Link>
+          </p>
+        )}
+      </section>
+
+      {/* 人类打卡区:唯一需要手动的动作,按时间分级出现 */}
+      <section className="nb-card mt-4 bg-white p-5">
+        <div className="text-xs font-black opacity-60">
+          🏃 人类打卡 —— Agent 考勤全自动,这颗按钮是给你的:下班那一刻按一下
+        </div>
         {done ? (
           <div className="text-center">
             <div className="text-4xl">✅</div>
@@ -150,15 +173,22 @@ export default function MePage() {
             <button onClick={() => setDone(null)} className="mt-2 text-xs font-bold underline opacity-60">好</button>
           </div>
         ) : today?.checked_in ? (
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
             <p className="font-black">✅ 今天 {today.clocked_local} 已打卡</p>
             <button onClick={() => punch()} disabled={busy} className="nb-btn bg-white px-3 py-1 text-sm font-bold">
               改成现在 🔁
             </button>
           </div>
+        ) : shanghaiNow().hour >= 5 && shanghaiNow().hour < 12 ? (
+          <p className="mt-2 text-sm font-bold opacity-50">还早着呢 —— 中午 12:00 之后才能打下班卡,到点再来。</p>
+        ) : shanghaiNow().hour >= 12 && shanghaiNow().hour < 17 ? (
+          <button onClick={() => punch()} disabled={busy || !company}
+            className="nb-btn mt-2 bg-white px-5 py-2 font-black disabled:opacity-40">
+            {busy ? "打卡中…" : company ? "我现在下班 🏃" : "先绑定公司(下方)"}
+          </button>
         ) : (
           <button onClick={() => punch()} disabled={busy || !company}
-            className="nb-btn w-full bg-[var(--nb-pink)] py-5 text-2xl font-black text-white disabled:opacity-40">
+            className="nb-btn mt-2 w-full bg-[var(--nb-pink)] py-5 text-2xl font-black text-white disabled:opacity-40">
             {busy ? "打卡中…" : company ? "我下班了 🎉" : "先绑定公司(下方)"}
           </button>
         )}
@@ -195,26 +225,6 @@ export default function MePage() {
               <span className="font-bold">离前三差 <span className="font-black text-[var(--nb-pink)]">{rank.gap_to_top3} 分钟</span></span>
             )}
           </div>
-        )}
-      </section>
-
-      {/* 我的 Agent 战报:每屏一个主数字,其余降级 */}
-      <section className="nb-card mt-4 bg-[var(--nb-yellow)] p-5">
-        {myAgents && myAgents.sessions > 0 ? (
-          <>
-            <p className="text-sm font-bold">你的 Agent 今天替你干了</p>
-            <p className="mt-1 tabular-nums">
-              <span className="text-4xl font-black">{myAgents.active_hours}</span>
-              <span className="ml-1 text-lg font-black">小时</span>
-              {myAgents.live_now > 0 && (
-                <span className="ml-3 text-sm font-bold opacity-60">此刻 {myAgents.live_now} 个还在跑</span>
-              )}
-            </p>
-          </>
-        ) : (
-          <p className="text-sm font-bold opacity-70">
-            还没有 Agent 数据 —— <Link href="/start" className="underline">接入考勤 →</Link>
-          </p>
         )}
       </section>
 
@@ -258,7 +268,7 @@ export default function MePage() {
       {justBound && company && !picking && (
         <div className="nb-card mt-3 bg-[var(--nb-green)] p-4">
           <p className="font-black">✅ 已加入「{company.name}」</p>
-          <p className="mt-1 text-sm font-bold">下班时回来点上面的大按钮打卡。现在先去转转:</p>
+          <p className="mt-1 text-sm font-bold">Agent 考勤全自动;你自己下班时回来打一下人类卡(上面 🏃)。现在先去转转:</p>
           <div className="mt-3 flex flex-wrap gap-3">
             <Link href="/" className="nb-btn bg-[var(--nb-yellow)] px-4 py-2 text-sm font-black">📟 实时仪表盘</Link>
             <Link href="/leaderboard" className="nb-btn bg-white px-4 py-2 text-sm font-black">🏆 排行榜</Link>
