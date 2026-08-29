@@ -100,8 +100,13 @@ export default function Home() {
     <main className="mx-auto max-w-3xl px-4 pb-16">
       {/* ===== 外环 · 全网实况 ===== */}
       <section className="pt-8">
-        <div className="text-xs font-black tracking-widest opacity-50">
-          全网 · 此刻 <span className="live-dot ml-1 align-middle" style={{ width: 10, height: 10 }} aria-hidden />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs font-black tracking-widest opacity-50">
+            全网 · 此刻 <span className="live-dot ml-1 align-middle" style={{ width: 10, height: 10 }} aria-hidden />
+          </div>
+          <div className="text-lg font-black italic">
+            AI-native? <span className="bg-[var(--nb-ink)] px-1.5 text-[var(--nb-yellow)]">Prove it!</span>
+          </div>
         </div>
         {/* 主视觉:我们定义的单位 agent-hours */}
         <h1 className="mt-2 font-black leading-none tabular-nums">
@@ -282,31 +287,38 @@ export default function Home() {
         )}
       </section>
 
-      {/* 接入 CTA:命令就是 CTA,别让人多点三层 */}
-      <section className="nb-card mt-8 bg-[var(--nb-ink)] p-5 text-white">
-        <div className="text-lg font-black">⏱ 30 秒,让你的 Agent 也被考勤</div>
-        <div className="mt-3 flex items-stretch gap-2">
-          <code className="flex-1 overflow-x-auto whitespace-nowrap bg-white/10 px-4 py-3 font-mono text-lg font-bold">
-            npx agentosity init
-          </code>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText("npx agentosity init");
-              setCmdCopied(true);
-              setTimeout(() => setCmdCopied(false), 1500);
-            }}
-            className="nb-btn shrink-0 border-white bg-[var(--nb-yellow)] px-4 font-black text-[var(--nb-ink)]"
-          >
-            {cmdCopied ? "✅ 已复制" : "复制"}
-          </button>
-        </div>
-        <p className="mt-2 text-xs font-bold opacity-70">
-          登录 → 选公司 → 全家 harness 自动接入,mac 还会顺手装好菜单栏 App · 只报时长,不读内容,开源可审计
+      {/* 接入 CTA:命令就是 CTA。黑色只留代码框本身,别抢整页的风头;已登录的人不用再看 */}
+      {loggedIn ? (
+        <p className="mt-8 text-center">
+          <Link href="/start" className="nb-btn inline-block bg-white px-5 py-2 text-sm font-black">
+            接入更多设备 / 详细说明 →
+          </Link>
         </p>
-        <Link href="/start" className="mt-1 inline-block text-xs font-bold underline opacity-70">
-          详细说明 / 直接下载 mac App →
-        </Link>
-      </section>
+      ) : (
+        <section className="nb-card mt-8 bg-white p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-black">⏱ 30 秒接入你的 Agent 考勤:</span>
+            <code className="flex-1 overflow-x-auto whitespace-nowrap bg-[var(--nb-ink)] px-3 py-2 font-mono font-bold text-[var(--nb-yellow)]"
+              style={{ minWidth: 220 }}>
+              npx agentosity init
+            </code>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText("npx agentosity init");
+                setCmdCopied(true);
+                setTimeout(() => setCmdCopied(false), 1500);
+              }}
+              className="nb-btn shrink-0 bg-[var(--nb-yellow)] px-4 py-2 font-black"
+            >
+              {cmdCopied ? "✅ 已复制" : "复制"}
+            </button>
+          </div>
+          <p className="mt-2 text-xs font-bold opacity-60">
+            登录 → 选公司 → 自动接入全家 harness,mac 顺手装好菜单栏 App · 只报时长,不读内容 ·{" "}
+            <Link href="/start" className="underline">详细说明 / 下载 mac App →</Link>
+          </p>
+        </section>
+      )}
     </main>
   );
 }
