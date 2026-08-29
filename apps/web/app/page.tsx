@@ -117,7 +117,10 @@ export default function Home() {
             agent-hours
           </span>
         </h1>
-        <p className="mt-1 text-sm font-bold opacity-60">今日全网 Agent 已干活的总时长</p>
+        <p className="mt-1 text-sm font-bold opacity-60">
+          {new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "long", day: "numeric", weekday: "short" }).format(new Date())}
+          {" "}· 全网入驻用户的 Agent 今天实打实干活的总时长(挂机不算)
+        </p>
         <p className="mt-3 text-lg font-black tabular-nums">
           ⚡ {live?.working ?? "—"}<span className="opacity-50">/{live?.total ?? "—"}</span> 个在岗 Agent 正在干活
         </p>
