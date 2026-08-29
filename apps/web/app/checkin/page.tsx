@@ -229,6 +229,9 @@ export default function CheckinPage() {
         ) : (
           <div className="nb-card bg-white p-4">
             <label className="text-sm font-extrabold">你在哪家公司上班?</label>
+            <p className="mt-1 text-xs font-bold opacity-60">
+              🔒 匿名上榜:对外只出现公司名和聚合数字,你的名字、邮箱永远不公开,个人排名只有你自己可见。不方便写真名?写个代号/战队名也行。
+            </p>
             {picking && (
               <button onClick={() => setPicking(false)} className="ml-3 text-xs font-bold underline opacity-60">
                 取消

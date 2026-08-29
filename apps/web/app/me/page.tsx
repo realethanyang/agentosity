@@ -231,6 +231,11 @@ export default function MePage() {
       {/* 公司绑定 */}
       <section className="nb-card mt-4 bg-white p-5">
         <div className="text-xs font-black opacity-60">公司绑定(改绑每周一次)</div>
+        {!company && (
+          <p className="mt-1 text-xs font-bold opacity-60">
+            🔒 匿名上榜:对外只出现公司名和聚合数字,个人永不露名。不方便写真名,代号/战队名也行。
+          </p>
+        )}
         {company && !picking ? (
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             <span className="text-xl font-black">🏢 {company.name}</span>
