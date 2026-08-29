@@ -98,7 +98,7 @@ func jwtExpMs(_ token: String) -> Double {
     return exp * 1000
 }
 
-let APP_VERSION = "0.3.1"
+let APP_VERSION = "0.3.2"
 
 // MARK: - 品牌色
 
@@ -262,7 +262,7 @@ final class Store: ObservableObject {
         config = loadRawConfig()
         await ensureFreshToken()
         do {
-            let data = try await request("/api/agents")
+            let data = try await request("/api/agents?days=1")
             let resp = try JSONDecoder().decode(AgentsResponse.self, from: data)
             live = resp.live
             if let mine = company {
@@ -595,7 +595,7 @@ struct PopoverView: View {
                         .foregroundStyle(.white.opacity(0.6))
                 }
                 if let mine = store.myCompanyRow {
-                    Text("\(mine.name) · 近 7 天 Active \(String(format: "%.1f", mine.active_hours))h · 在岗 \(mine.live_now)")
+                    Text("\(mine.name) · 今日 \(String(format: "%.1f", mine.active_hours))h · 在岗 \(mine.live_now)")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.6))
                 }
