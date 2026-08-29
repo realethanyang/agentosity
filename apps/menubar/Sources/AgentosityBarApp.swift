@@ -98,7 +98,7 @@ func jwtExpMs(_ token: String) -> Double {
     return exp * 1000
 }
 
-let APP_VERSION = "0.3.2"
+let APP_VERSION = "0.3.3"
 
 // MARK: - 品牌色
 
@@ -431,9 +431,23 @@ func offerMoveToApplications() {
     }
 }
 
+/// 双击"应用程序"里一个已在运行的菜单栏 App,系统默认零反馈 —— 弹个提示指路,别让人以为打不开
+final class ReopenDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        let a = NSAlert()
+        a.messageText = "Agentosity 已经在运行"
+        a.informativeText = "它住在屏幕右上角的菜单栏里(⚡/🤖 图标),点那个图标就能看实时面板。没有窗口是正常的。"
+        a.addButton(withTitle: "知道了")
+        NSApp.activate(ignoringOtherApps: true)
+        a.runModal()
+        return false
+    }
+}
+
 @main
 struct AgentosityBarApp: App {
     @StateObject private var store = Store()
+    @NSApplicationDelegateAdaptor(ReopenDelegate.self) private var reopenDelegate
 
     init() {
         Task { @MainActor in offerMoveToApplications() }

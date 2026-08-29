@@ -148,7 +148,7 @@ async function installMenubarApp() {
 
   if (existsSync("/Applications/Agentosity.app")) {
     sh("open", ["-g", "-a", "Agentosity"]);
-    console.log("\n✓ 菜单栏 App 已安装并带起(登录状态与命令行共享)");
+    console.log("\n✓ 菜单栏 App 已安装并带起(看右上角菜单栏 ⚡/🤖 图标;登录状态与命令行共享)");
     return;
   }
   console.log("\n⬇️  安装菜单栏 App(实时看板 + 进程雷达,正在跑的 Agent 免重启收编)…");
@@ -163,7 +163,7 @@ async function installMenubarApp() {
   sh("hdiutil", ["detach", "-quiet", mount]);
   if (cp.status !== 0) return console.log("   拷贝失败(/Applications 无写权限?),跳过。\n" + fallback);
   sh("open", ["-g", "-a", "Agentosity"]);
-  console.log("✅ 菜单栏 App 已装进 /Applications 并启动,登录状态自动同步(首次打开若系统弹确认,点「打开」)");
+  console.log("✅ 菜单栏 App 已装进 /Applications 并启动 —— 它没有窗口,看屏幕右上角菜单栏的 ⚡/🤖 图标(首次打开若系统弹确认,点「打开」)");
 }
 
 async function openBrowser(url) {
