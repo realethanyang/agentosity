@@ -254,7 +254,7 @@ export default function CheckinPage() {
       <section className="mt-6">
         {profile && !profile.handle ? (
           <div className="nb-card bg-[var(--nb-yellow)] p-4">
-            <label className="text-sm font-extrabold">① 立个人旗号 —— 你在个人榜上的名字,想叫啥叫啥</label>
+            <label className="text-sm font-extrabold">🚩 立个人旗号 —— 你在个人榜上的名字,想叫啥叫啥</label>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <input value={handleInput} onChange={(e) => setHandleInput(e.target.value)}
                 className="flex-1 bg-white p-3 font-bold outline-none" style={{ border: "3px solid var(--nb-ink)", minWidth: 160 }} />
@@ -267,7 +267,7 @@ export default function CheckinPage() {
             <p className="mt-1 text-xs font-bold opacity-60">帮你起了一个,不满意随便改;设好这一步你就已经在个人榜上了</p>
           </div>
         ) : profile?.handle ? (
-          <div className="nb-card bg-white px-4 py-2 text-sm font-black">🚩 {profile.handle} <span className="opacity-50">· 个人榜身份 ✓</span></div>
+          <div className="nb-card bg-white px-4 py-2 text-sm font-black">🚩 {profile.handle} <span className="opacity-50">· 已在个人榜 ✓ · 改名去「我的」</span></div>
         ) : null}
       </section>
 
@@ -293,7 +293,7 @@ export default function CheckinPage() {
           </div>
         ) : (
           <div className="nb-card bg-white p-4">
-            <label className="text-sm font-extrabold">② 绑定公司(可跳过)—— 想上公司榜、跟别家比拼,才需要这一步</label>
+            <label className="text-sm font-extrabold">🏢 绑定公司(可跳过)—— 想上公司榜、跟别家比拼,才需要这一步</label>
             <p className="mt-1 text-xs font-bold opacity-60">
               🔒 对外只出现公司名和聚合数字,个人永不露名 · 绑定后每周可改一次,以后随时能换真公司。
             </p>

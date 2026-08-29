@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { userTokenFromRequest, authFromRequest } from "@/lib/auth-server";
+import { suggestHandle } from "@/lib/handle";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +24,24 @@ export async function GET(req: NextRequest) {
     .maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // 登录用户没有旗号 → 自动配一个(个人榜零门槛;用户随时可改)
+  let handle: string | null = data?.handle ?? null;
+  if (!handle && userToken) {
+    for (let i = 0; i < 5 && !handle; i++) {
+      const h = suggestHandle();
+      const q = await db()
+        .from("profiles")
+        .upsert({ user_token: userToken, handle: h }, { onConflict: "user_token" });
+      if (!q.error) handle = h;
+    }
+  }
+
   const company = (data?.companies as unknown as { id: string; name: string } | null) ?? null;
   const changedAt = data?.company_changed_at ? new Date(data.company_changed_at).getTime() : null;
   const nextChangeAt = changedAt ? new Date(changedAt + CHANGE_INTERVAL_MS) : null;
   return NextResponse.json({
     company,
-    handle: data?.handle ?? null,
+    handle,
     can_change: !company || !nextChangeAt || Date.now() >= nextChangeAt.getTime(),
     next_change_at: nextChangeAt && Date.now() < nextChangeAt.getTime() ? nextChangeAt.toISOString().slice(0, 10) : null,
   });

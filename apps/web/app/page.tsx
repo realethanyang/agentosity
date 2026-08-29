@@ -208,14 +208,37 @@ export default function Home() {
           </div>
         </section>
       ) : (
-        <section className="nb-card mt-6 flex flex-wrap items-center justify-between gap-3 bg-white p-4">
-          <p className="text-sm font-bold">
-            登录后解锁<span className="font-black">你的 Agent 战报</span>和
-            <span className="font-black">你全公司的实时视角</span> —— 谁下班了、谁的 Agent 在干活,尽在掌握。
+        <section className="nb-card mt-6 bg-white p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-black">⏱ 30 秒接入你的 Agent 考勤:</span>
+            <code className="flex-1 overflow-x-auto whitespace-nowrap bg-[var(--nb-ink)] px-3 py-2 font-mono font-bold text-[var(--nb-yellow)]"
+              style={{ minWidth: 220 }}>
+              npx agentosity init
+            </code>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText("npx agentosity init");
+                setCmdCopied(true);
+                setTimeout(() => setCmdCopied(false), 1500);
+              }}
+              className="nb-btn shrink-0 bg-[var(--nb-yellow)] px-4 py-2 font-black"
+            >
+              {cmdCopied ? "✅ 已复制" : "复制"}
+            </button>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <a href="https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.dmg"
+              className="nb-btn bg-white px-4 py-2 text-sm font-black">
+              ⬇️ 不玩命令行?下载 mac App
+            </a>
+            <Link href="/login?next=/me" className="nb-btn bg-[var(--nb-pink)] px-4 py-2 text-sm font-black text-white">
+              已有账号?登录 →
+            </Link>
+            <Link href="/start" className="text-xs font-bold underline opacity-60">详细说明 / 其他平台 →</Link>
+          </div>
+          <p className="mt-2 text-xs font-bold opacity-60">
+            登录 → 自动配好个人旗号 → 自动接入全家 harness · 只报时长,不读内容,开源可审计
           </p>
-          <Link href="/login?next=/me" className="nb-btn bg-[var(--nb-pink)] px-5 py-2 font-black text-white">
-            登录 →
-          </Link>
         </section>
       )}
 
@@ -288,43 +311,13 @@ export default function Home() {
         )}
       </section>
 
-      {/* 接入 CTA:命令就是 CTA。黑色只留代码框本身,别抢整页的风头;已登录的人不用再看 */}
-      {loggedIn ? (
+      {/* 已登录:底部只留一个小入口(未登录用户的接入 CTA 在上面登录卡的位置) */}
+      {loggedIn && (
         <p className="mt-8 text-center">
           <Link href="/start" className="nb-btn inline-block bg-white px-5 py-2 text-sm font-black">
             接入更多设备 / 详细说明 →
           </Link>
         </p>
-      ) : (
-        <section className="nb-card mt-8 bg-white p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm font-black">⏱ 30 秒接入你的 Agent 考勤:</span>
-            <code className="flex-1 overflow-x-auto whitespace-nowrap bg-[var(--nb-ink)] px-3 py-2 font-mono font-bold text-[var(--nb-yellow)]"
-              style={{ minWidth: 220 }}>
-              npx agentosity init
-            </code>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText("npx agentosity init");
-                setCmdCopied(true);
-                setTimeout(() => setCmdCopied(false), 1500);
-              }}
-              className="nb-btn shrink-0 bg-[var(--nb-yellow)] px-4 py-2 font-black"
-            >
-              {cmdCopied ? "✅ 已复制" : "复制"}
-            </button>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <a href="https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.dmg"
-              className="nb-btn bg-white px-4 py-2 text-sm font-black">
-              ⬇️ 不玩命令行?下载 mac App
-            </a>
-            <Link href="/start" className="text-xs font-bold underline opacity-60">详细说明 / 其他平台 →</Link>
-          </div>
-          <p className="mt-2 text-xs font-bold opacity-60">
-            登录 → 立旗号/选公司 → 自动接入全家 harness · 只报时长,不读内容,开源可审计
-          </p>
-        </section>
       )}
     </main>
   );

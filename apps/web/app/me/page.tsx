@@ -310,12 +310,12 @@ export default function MePage() {
         ) : shanghaiNow().hour >= 12 && shanghaiNow().hour < 17 ? (
           <button onClick={() => punch()} disabled={busy || !company}
             className="nb-btn mt-2 bg-white px-5 py-2 font-black disabled:opacity-40">
-            {busy ? "打卡中…" : company ? "我现在下班 🏃" : "先绑定公司(下方)"}
+            {busy ? "打卡中…" : company ? "我现在下班 🏃" : "先去顶部绑定公司 / 单飞"}
           </button>
         ) : (
           <button onClick={() => punch()} disabled={busy || !company}
             className="nb-btn mt-2 w-full bg-[var(--nb-pink)] py-5 text-2xl font-black text-white disabled:opacity-40">
-            {busy ? "打卡中…" : company ? "我下班了 🎉" : "先绑定公司(下方)"}
+            {busy ? "打卡中…" : company ? "我下班了 🎉" : "先去顶部绑定公司 / 单飞"}
           </button>
         )}
         <button onClick={() => setShowBackfill(!showBackfill)} className="mt-3 text-xs font-extrabold underline opacity-60">

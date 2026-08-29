@@ -98,7 +98,7 @@ func jwtExpMs(_ token: String) -> Double {
     return exp * 1000
 }
 
-let APP_VERSION = "0.3.3"
+let APP_VERSION = "0.3.4"
 
 // MARK: - 品牌色
 
@@ -179,8 +179,13 @@ final class Store: ObservableObject {
         radar.company = { [weak self] in self?.company }
         radar.deviceId = { [weak self] in self?.deviceId }
         radar.accessToken = { [weak self] in self?.accessToken }
+        NotificationCenter.default.addObserver(forName: Notification.Name("agentosity.login"), object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in await self?.browserLogin() }
+        }
         Task { [weak self] in
             await self?.checkUpdate()
+            // 直接下载 App 的用户没有 CLI 写好的凭证:首启主动请登录,别蹲在看不见的菜单栏里干等
+            if let self, self.accessToken == nil { await self.promptLoginOnce() }
             while true {
                 guard let self else { return }
                 await self.refresh()
@@ -317,6 +322,19 @@ final class Store: ObservableObject {
     }
 
     /** 浏览器登录(设备授权流) */
+    private var didPromptLogin = false
+    func promptLoginOnce() async {
+        guard !didPromptLogin else { return }
+        didPromptLogin = true
+        let a = NSAlert()
+        a.messageText = "欢迎!登录后开始 Agent 考勤"
+        a.informativeText = "点「登录」用浏览器完成授权——你在网页上登录过的话,基本一路自动。登录后我就住在右上角菜单栏(⚡/🤖 图标)里,自动统计你的 Agent 工时。"
+        a.addButton(withTitle: "登录")
+        a.addButton(withTitle: "稍后")
+        NSApp.activate(ignoringOtherApps: true)
+        if a.runModal() == .alertFirstButtonReturn { await browserLogin() }
+    }
+
     func browserLogin() async {
         guard let d = try? await request("/api/device/start", method: "POST", json: [:]),
               let start = try? JSONDecoder().decode(DeviceStart.self, from: d),
@@ -434,12 +452,25 @@ func offerMoveToApplications() {
 /// 双击"应用程序"里一个已在运行的菜单栏 App,系统默认零反馈 —— 弹个提示指路,别让人以为打不开
 final class ReopenDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        let email = loadRawConfig()["email"] as? String
         let a = NSAlert()
-        a.messageText = "Agentosity 已经在运行"
-        a.informativeText = "它住在屏幕右上角的菜单栏里(⚡/🤖 图标),点那个图标就能看实时面板。没有窗口是正常的。"
-        a.addButton(withTitle: "知道了")
         NSApp.activate(ignoringOtherApps: true)
-        a.runModal()
+        if let email {
+            a.messageText = "Agentosity 正在运行(已登录 \(email))"
+            a.informativeText = "它住在右上角菜单栏(⚡/🤖 图标),没有窗口是正常的。找不到图标?多半是菜单栏太挤或被刘海遮住——去掉几个别的图标就能看到;考勤不受影响,网页端照常统计。"
+            a.addButton(withTitle: "打开网页面板")
+            a.addButton(withTitle: "知道了")
+            if a.runModal() == .alertFirstButtonReturn,
+               let url = URL(string: "https://agentosity.com/me") { NSWorkspace.shared.open(url) }
+        } else {
+            a.messageText = "Agentosity 正在运行,但还没登录"
+            a.informativeText = "点「登录」用浏览器完成授权——你在网页上登录过的话,基本一路自动。之后它就在右上角菜单栏里自动统计你的 Agent 工时。"
+            a.addButton(withTitle: "登录")
+            a.addButton(withTitle: "稍后")
+            if a.runModal() == .alertFirstButtonReturn {
+                NotificationCenter.default.post(name: Notification.Name("agentosity.login"), object: nil)
+            }
+        }
         return false
     }
 }
