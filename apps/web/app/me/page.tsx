@@ -10,10 +10,7 @@ import ShareCardButton from "@/components/ShareCard";
 type Company = { id: string; name: string };
 type Profile = { company: Company | null; handle: string | null; can_change: boolean; next_change_at: string | null };
 
-const ADJ = ["熬夜", "摸鱼", "闪电", "卷王", "佛系", "暴走", "低调", "赛博", "隐身", "满血"];
-const NOUN = ["船长", "厂长", "监工", "堂主", "指挥官", "练习生", "车间主任", "包工头", "司机", "掌门"];
-const suggestHandle = () =>
-  ADJ[Math.floor(Math.random() * ADJ.length)] + NOUN[Math.floor(Math.random() * NOUN.length)] + "#" + Math.floor(10 + Math.random() * 90);
+import { suggestHandle } from "@/lib/handle";
 type MyRank = {
   found: boolean;
   no_data?: boolean;
@@ -100,6 +97,21 @@ export default function MePage() {
       setEditingHandle(false);
       load();
     } else setError(d.error ?? "保存失败");
+  }
+
+  /** 跳过绑公司:用旗号建一人战队上榜(服务端回填改绑时间,不占每周额度) */
+  async function soloSkip() {
+    setError(null);
+    const r = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...(await freshAuthHeaders()) },
+      body: JSON.stringify({ solo: true, deviceId: deviceId() }),
+    });
+    const d = await r.json();
+    if (r.ok) {
+      setJustBound(true);
+      load();
+    } else setError(d.error ?? "操作失败");
   }
 
   async function bindCompany(c: Company) {
@@ -192,12 +204,11 @@ export default function MePage() {
   const bindSection = (
     <section className="nb-card mt-4 bg-white p-5">
       <div className="text-xs font-black opacity-60">
-        {company ? "公司绑定(改绑每周一次)" : "🏢 公司绑定 —— 想跟别家比拼,就报个门派"}
+        {company ? "公司绑定(改绑每周一次)" : "🏢 公司绑定(可跳过)—— 想上公司榜、跟别家比拼,才需要这一步"}
       </div>
       {!company && (
         <p className="mt-1 text-xs font-bold opacity-60">
-          🔒 匿名上榜:对外只出现公司名和聚合数字,个人永不露名。不方便写真名,代号/战队名也行。
-          <span className="opacity-80">暂时不想绑?没关系,设好旗号就已经在个人榜上了。</span>
+          🔒 对外只出现公司名和聚合数字,个人永不露名 · 绑定后每周可改一次,以后随时能换真公司。
         </p>
       )}
       {company && !picking ? (
@@ -228,6 +239,13 @@ export default function MePage() {
                 ＋ 没找到?创建「{q.trim()}」
               </button>
             </div>
+          )}
+          {!picking && (
+            <button onClick={soloSkip} disabled={!profile?.handle}
+              className="nb-btn mt-3 w-full bg-[var(--nb-yellow)] py-2 text-sm font-black disabled:opacity-40"
+              title={profile?.handle ? "" : "先设置个人旗号"}>
+              先跳过 —— 用旗号「{profile?.handle ?? "…"}」单飞上榜 →
+            </button>
           )}
         </div>
       )}

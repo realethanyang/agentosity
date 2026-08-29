@@ -67,6 +67,31 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ ok: true, handle });
   }
 
+  // 「用旗号单飞」:跳过绑公司,用旗号建一人战队并绑定;改绑时间回填,不占每周改绑额度
+  if (body?.solo === true) {
+    const { data: prof } = await db()
+      .from("profiles").select("handle, company_id").eq("user_token", token).maybeSingle();
+    if (!prof?.handle) return NextResponse.json({ error: "先设置个人旗号" }, { status: 400 });
+    if (prof.company_id) return NextResponse.json({ ok: true, unchanged: true });
+    const { data: foundId } = await db().rpc("fn_find_company", { p_name: prof.handle });
+    let soloCompanyId = foundId as string | null;
+    if (!soloCompanyId) {
+      const created = await db()
+        .from("companies")
+        .upsert({ name: prof.handle, source: "user_created" }, { onConflict: "name" })
+        .select("id").single();
+      if (created.error) return NextResponse.json({ error: created.error.message }, { status: 500 });
+      soloCompanyId = created.data.id;
+    }
+    const { error } = await db().from("profiles").upsert({
+      user_token: token,
+      company_id: soloCompanyId,
+      company_changed_at: new Date(Date.now() - 8 * 24 * 3600 * 1000).toISOString(),
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, solo: true });
+  }
+
   if (!companyId) return NextResponse.json({ error: "缺少 companyId / handle" }, { status: 400 });
 
   const supa = db();

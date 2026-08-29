@@ -314,9 +314,15 @@ export default function Home() {
               {cmdCopied ? "✅ 已复制" : "复制"}
             </button>
           </div>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <a href="https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.dmg"
+              className="nb-btn bg-white px-4 py-2 text-sm font-black">
+              ⬇️ 不玩命令行?下载 mac App
+            </a>
+            <Link href="/start" className="text-xs font-bold underline opacity-60">详细说明 / 其他平台 →</Link>
+          </div>
           <p className="mt-2 text-xs font-bold opacity-60">
-            登录 → 选公司 → 自动接入全家 harness,mac 顺手装好菜单栏 App · 只报时长,不读内容 ·{" "}
-            <Link href="/start" className="underline">详细说明 / 下载 mac App →</Link>
+            登录 → 立旗号/选公司 → 自动接入全家 harness · 只报时长,不读内容,开源可审计
           </p>
         </section>
       )}

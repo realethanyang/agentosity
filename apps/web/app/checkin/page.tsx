@@ -6,9 +6,12 @@ import { deviceId } from "@/lib/device";
 import { freshAuthHeaders } from "@/lib/auth-client";
 import { shanghaiNow } from "@/lib/time";
 
+import { suggestHandle } from "@/lib/handle";
+
 type Company = { id: string; name: string };
 type Profile = {
   company: Company | null;
+  handle: string | null;
   can_change: boolean;
   next_change_at: string | null;
 };
@@ -88,7 +91,47 @@ export default function CheckinPage() {
   }
 
   const [justBound, setJustBound] = useState(false);
+  const [soloDone, setSoloDone] = useState(false);
   const fromCli = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("from") === "cli";
+
+  const [handleInput, setHandleInput] = useState("");
+  const [handleBusy, setHandleBusy] = useState(false);
+  useEffect(() => {
+    if (profile && !profile.handle && !handleInput) setHandleInput(suggestHandle());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile]);
+
+  async function saveHandle() {
+    const h = handleInput.trim();
+    if (h.length < 2) return setError("旗号至少 2 个字符");
+    setHandleBusy(true);
+    setError(null);
+    const r = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...(await freshAuthHeaders()) },
+      body: JSON.stringify({ handle: h, deviceId: deviceId() }),
+    });
+    const d = await r.json();
+    setHandleBusy(false);
+    if (r.ok) await loadProfile();
+    else setError(d.error ?? "保存失败");
+  }
+
+  /** 跳过绑公司:用旗号建一人战队上榜(以后随时可改绑真公司,不占每周额度) */
+  async function soloSkip() {
+    setError(null);
+    const r = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...(await freshAuthHeaders()) },
+      body: JSON.stringify({ solo: true, deviceId: deviceId() }),
+    });
+    const d = await r.json();
+    if (r.ok) {
+      setSoloDone(true);
+      setJustBound(true);
+      await loadProfile();
+    } else setError(d.error ?? "操作失败");
+  }
 
   /** 绑定/改绑公司(服务端唯一真相,改绑每周一次) */
   async function pick(c: Company) {
@@ -207,8 +250,29 @@ export default function CheckinPage() {
         </div>
       )}
 
-      {/* 选公司(绑定制:服务端唯一真相,改绑每周一次) */}
+      {/* ① 个人旗号:个人榜门票,先让每个人零门槛上榜 */}
       <section className="mt-6">
+        {profile && !profile.handle ? (
+          <div className="nb-card bg-[var(--nb-yellow)] p-4">
+            <label className="text-sm font-extrabold">① 立个人旗号 —— 你在个人榜上的名字,想叫啥叫啥</label>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <input value={handleInput} onChange={(e) => setHandleInput(e.target.value)}
+                className="flex-1 bg-white p-3 font-bold outline-none" style={{ border: "3px solid var(--nb-ink)", minWidth: 160 }} />
+              <button onClick={() => setHandleInput(suggestHandle())} className="nb-btn bg-white px-3 py-2 text-sm font-bold">🎲</button>
+              <button onClick={saveHandle} disabled={handleBusy}
+                className="nb-btn bg-[var(--nb-green)] px-4 py-2 font-black disabled:opacity-40">
+                {handleBusy ? "…" : "就用这个,上榜 →"}
+              </button>
+            </div>
+            <p className="mt-1 text-xs font-bold opacity-60">帮你起了一个,不满意随便改;设好这一步你就已经在个人榜上了</p>
+          </div>
+        ) : profile?.handle ? (
+          <div className="nb-card bg-white px-4 py-2 text-sm font-black">🚩 {profile.handle} <span className="opacity-50">· 个人榜身份 ✓</span></div>
+        ) : null}
+      </section>
+
+      {/* ② 公司绑定(可跳过;服务端唯一真相,改绑每周一次) */}
+      <section className="mt-4">
         {company && !picking ? (
           <div className="nb-card flex items-center justify-between bg-white p-4">
             <div>
@@ -229,9 +293,9 @@ export default function CheckinPage() {
           </div>
         ) : (
           <div className="nb-card bg-white p-4">
-            <label className="text-sm font-extrabold">你在哪家公司上班?</label>
+            <label className="text-sm font-extrabold">② 绑定公司(可跳过)—— 想上公司榜、跟别家比拼,才需要这一步</label>
             <p className="mt-1 text-xs font-bold opacity-60">
-              🔒 匿名上榜:对外只出现公司名和聚合数字,你的名字、邮箱永远不公开,个人排名只有你自己可见。不方便写真名?写个代号/战队名也行。
+              🔒 对外只出现公司名和聚合数字,个人永不露名 · 绑定后每周可改一次,以后随时能换真公司。
             </p>
             {picking && (
               <button onClick={() => setPicking(false)} className="ml-3 text-xs font-bold underline opacity-60">
@@ -261,6 +325,13 @@ export default function CheckinPage() {
                 )}
               </div>
             )}
+            {!picking && (
+              <button onClick={soloSkip} disabled={!profile?.handle}
+                className="nb-btn mt-3 w-full bg-[var(--nb-yellow)] py-2 font-black disabled:opacity-40"
+                title={profile?.handle ? "" : "先在上面立个旗号"}>
+                先跳过 —— 用旗号「{profile?.handle ?? "…"}」单飞上榜 →
+              </button>
+            )}
           </div>
         )}
       </section>
@@ -268,7 +339,7 @@ export default function CheckinPage() {
       {/* 绑定完成:接住用户,告诉他下一步去哪 */}
       {justBound && company && !picking && (
         <div className="nb-card mt-3 bg-[var(--nb-green)] p-4">
-          <p className="font-black">✅ 已加入「{company.name}」</p>
+          <p className="font-black">{soloDone ? `✅ 已用旗号「${company.name}」单飞上榜(想上公司榜随时回来绑真公司)` : `✅ 已加入「${company.name}」`}</p>
           {fromCli ? (
             <p className="mt-1 text-sm font-bold">
               回到终端,剩下的安装会自动完成。装好后你的 Agent 干活时长会实时出现在这里:
