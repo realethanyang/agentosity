@@ -2,22 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fmtMinutes } from "@/lib/time";
-
-type AgentRow = {
-  name: string;
-  active_hours: number;
-  daa_today: number;
-  human_avg_minutes: number | null;
-  leverage: number | null;
-  live_now: number;
-  working_now: number;
-};
-
-/** Agentosity 指数:100×L/(L+1),50 分 = AI 与人打平;无人类打卡数据不出分 */
-function agentosityScore(leverage: number | null): number | null {
-  if (leverage == null || leverage <= 0) return null;
-  return Math.round((100 * leverage) / (leverage + 1));
-}
+import AgentBoardTable, { AgentBoardRow, agentosityScore } from "@/components/AgentBoardTable";
 type Top3 = { rank: number; name: string; avg_minutes: number; count: number };
 type Board = {
   day: string;
@@ -31,7 +16,7 @@ const CITIES = ["北京", "上海", "深圳", "杭州", "广州"];
 
 export default function LeaderboardPage() {
   const [tab, setTab] = useState<"agent" | "human">("agent");
-  const [agentBoard, setAgentBoard] = useState<AgentRow[] | null>(null);
+  const [agentBoard, setAgentBoard] = useState<AgentBoardRow[] | null>(null);
   const [period, setPeriod] = useState<{ from: string; to: string; days: number } | null>(null);
   const [days, setDays] = useState<1 | 7 | 30>(1);
   const [mode, setMode] = useState<"sum" | "avg">("sum");
@@ -121,58 +106,13 @@ export default function LeaderboardPage() {
           {!agentBoard ? (
             <p className="py-10 text-center font-bold opacity-50">加载中…</p>
           ) : (
-            <table className="mt-4 w-full min-w-[560px] text-sm">
-              <thead>
-                <tr className="text-left font-black" style={{ borderBottom: "3px solid var(--nb-ink)" }}>
-                  <th className="py-2">#</th>
-                  <th>公司</th>
-                  <th className="text-right" title="该公司全部 Agent 真实干活的时长(探针过滤,不含挂机)">
-                    agent-hours{mode === "avg" ? "(日均)" : days === 1 ? "(今日)" : `(${days}天)`}
-                  </th>
-                  <th className="text-right" title="Daily Active Agents:今天真实干过活的 Agent 会话数">
-                    DAA(今日)
-                  </th>
-                  <th className="text-right"
-                    title="Agentosity 指数 = 100×L/(L+1),L = agent-hours ÷ 人类工时。50 分 = AI 干的活与人类打平">
-                    Agentosity 指数
-                  </th>
-                  <th className="text-right" title="此刻:正在干活数/在岗总数">在岗</th>
-                </tr>
-              </thead>
-              <tbody className="font-bold">
-                {(sortedBoard ?? []).slice(0, 20).map((r, i) => (
-                  <tr key={r.name} className="border-b border-dashed border-black/20">
-                    <td className="py-2 font-black">{i + 1}</td>
-                    <td>{r.name}</td>
-                    <td className="text-right tabular-nums font-black">
-                      {hoursOf(r.active_hours)} <span className="text-xs opacity-50">h{mode === "avg" ? "/天" : ""}</span>
-                    </td>
-                    <td className="text-right tabular-nums">{r.daa_today}</td>
-                    <td className="text-right tabular-nums">
-                      {agentosityScore(r.leverage) != null ? (
-                        <span
-                          className="font-black"
-                          title={`人均 ${r.human_avg_minutes != null ? fmtMinutes(r.human_avg_minutes) : "—"} 走 · 杠杆 ${r.leverage}`}
-                        >
-                          {agentosityScore(r.leverage)}
-                        </span>
-                      ) : (
-                        <span className="opacity-30" title="需要人类打卡数据才能计算">—</span>
-                      )}
-                    </td>
-                    <td className="text-right">
-                      {r.live_now > 0 ? (
-                        <span className="bg-[var(--nb-green)] px-2 py-0.5 text-xs font-black tabular-nums">
-                          ⚡{r.working_now}/{r.live_now}
-                        </span>
-                      ) : (
-                        <span className="opacity-30">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <AgentBoardTable
+              rows={sortedBoard ?? []}
+              limit={20}
+              hoursHeader={`agent-hours${mode === "avg" ? "(日均)" : days === 1 ? "(今日)" : `(${days}天)`}`}
+              hoursSuffix={mode === "avg" ? "h/天" : "h"}
+              hoursOf={hoursOf}
+            />
           )}
           <p className="mt-2 text-xs font-bold opacity-50">
             agent-hours = 探针测出的真实干活时长(挂机不算)· Agentosity 指数过 50 = AI 干的活比人多 ·

@@ -12,16 +12,7 @@ type Live = {
   idle: number;
   today_active_hours?: number;
 };
-type AgentRow = {
-  name: string;
-  active_hours: number;
-  human_avg_minutes: number | null;
-  leverage: number | null;
-  members: number;
-  daa_today: number;
-  live_now: number;
-  working_now: number;
-};
+import AgentBoardTable, { AgentBoardRow } from "@/components/AgentBoardTable";
 
 type Top3 ={ rank: number; name: string; avg_minutes: number; count: number };
 type Pulse = {
@@ -45,7 +36,7 @@ type MyCompany = {
 
 export default function Home() {
   const [live, setLive] = useState<Live | null>(null);
-  const [board, setBoard] = useState<AgentRow[] | null>(null);
+  const [board, setBoard] = useState<AgentBoardRow[] | null>(null);
   const [humanTop, setHumanTop] = useState<Top3[] | null>(null);
   const [pulse, setPulse] = useState<Pulse | null>(null);
   const [my, setMy] = useState<MyAgents | null>(null);
@@ -191,30 +182,12 @@ export default function Home() {
       )}
 
       {/* ===== 外环 · 双榜预览 ===== */}
-      <section className="nb-card mt-6 bg-white p-5">
+      <section className="nb-card mt-6 overflow-x-auto bg-white p-5">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-xl font-black">Agent 工时榜<span className="ml-1 text-xs font-bold opacity-50">今日 · 实时</span></h2>
-          <Link href="/leaderboard" className="text-xs font-bold underline opacity-60">完整榜单 →</Link>
+          <Link href="/leaderboard" className="text-xs font-bold underline opacity-60">7/30 天与指数排序 →</Link>
         </div>
-        {board && (
-          <table className="mt-3 w-full text-sm">
-            <tbody className="font-bold">
-              {board.slice(0, 5).map((r, i) => (
-                <tr key={r.name} className="border-b border-dashed border-black/15">
-                  <td className="py-1.5 font-black">{i + 1}</td>
-                  <td>
-                    {r.name}
-                    {r.working_now > 0 && <span className="ml-1" title={`此刻 ${r.working_now} 个 Agent 在干活`}>⚡</span>}
-                    <span className="block text-[11px] font-bold opacity-50">
-                      {r.members} 人 · 今日 {r.daa_today} 个 Agent 出勤
-                    </span>
-                  </td>
-                  <td className="text-right tabular-nums font-black">{r.active_hours} h</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        {board && <AgentBoardTable rows={board} limit={10} />}
       </section>
 
       <section className="nb-card mt-4 bg-white p-5">
