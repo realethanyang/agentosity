@@ -47,7 +47,11 @@ export default function LoginPage() {
   }, []);
 
   function googleLogin() {
-    const redirect = `${window.location.origin}/login${deviceCode ? `?device=${deviceCode}` : ""}`;
+    const qs = new URLSearchParams();
+    if (deviceCode) qs.set("device", deviceCode);
+    if (fromCli) qs.set("from", "cli");
+    if (next) qs.set("next", next);
+    const redirect = `${window.location.origin}/login${qs.toString() ? `?${qs.toString()}` : ""}`;
     window.location.href = `https://phkifnntpacovtwiwhrp.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirect)}`;
   }
   const [busy, setBusy] = useState(false);
@@ -56,13 +60,26 @@ export default function LoginPage() {
   const [deviceApproved, setDeviceApproved] = useState(false);
   const [next, setNext] = useState<string | null>(null);
 
+  const [fromCli, setFromCli] = useState(false);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("device");
     if (code) setDeviceCode(code);
     const n = params.get("next");
     if (n && n.startsWith("/")) setNext(n);
+    setFromCli(params.get("from") === "cli" || (n ?? "").includes("from=cli"));
   }, []);
+
+  // 登录完成不让用户干等:CLI 流跳绑定页,普通流跳 next(App 设备流留在本页看"回到 App"提示)
+  useEffect(() => {
+    if (stage !== "done") return;
+    const t = setTimeout(() => {
+      if (fromCli && (!deviceCode || deviceApproved)) window.location.replace("/checkin?from=cli");
+      else if (next && !deviceCode) window.location.replace(next);
+    }, 800);
+    return () => clearTimeout(t);
+  }, [stage, deviceApproved, fromCli, next, deviceCode]);
 
   function friendly(msg: string): string {
     if (/security purposes/i.test(msg)) return "发送太频繁了,等 60 秒再试";
@@ -128,7 +145,12 @@ export default function LoginPage() {
           <p className="mt-6 font-bold opacity-60">正在授权你的设备…</p>
         )}
         {deviceApproved && (
-          <p className="mt-6 text-lg font-black">🎉 已自动授权,回到终端 / App 看看吧(本页可关闭)</p>
+          <p className="mt-6 text-lg font-black">
+            {fromCli ? "🎉 已授权,正在打开绑定页…" : "🎉 已自动授权,回到终端 / App 看看吧(本页可关闭)"}
+          </p>
+        )}
+        {next && !deviceCode && (
+          <p className="mt-6 font-bold opacity-60">正在跳转…</p>
         )}
         {next && (
           <Link href={next} className="nb-btn mt-6 inline-block bg-[var(--nb-pink)] px-6 py-3 font-black text-white">

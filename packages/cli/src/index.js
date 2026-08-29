@@ -47,8 +47,9 @@ async function init(companyArg) {
 
   // 1. 登录(没有就当场走浏览器授权)
   let cfg = loadConfig();
+  let didBrowserLogin = false;
   if (!cfg.accessToken) {
-    await browserLogin(); // 失败会自行退出
+    didBrowserLogin = (await browserLogin()) === true; // 失败会自行退出
     cfg = loadConfig();
   } else {
     console.log(`✓ 已登录 ${cfg.email ?? ""}`);
@@ -76,8 +77,13 @@ async function init(companyArg) {
   }
   if (!prof?.company) {
     const url = `${apiBase()}/checkin?from=cli`;
-    console.log(`在网页上选择你的公司…\n打不开就手动访问:${url}`);
-    await openBrowser(url);
+    if (didBrowserLogin) {
+      // 登录页会自动跳到绑定页,别再开第二个标签页戳用户
+      console.log(`在刚才的浏览器页面里选择你的公司…\n没看到就手动访问:${url}`);
+    } else {
+      console.log(`在网页上选择你的公司…\n打不开就手动访问:${url}`);
+      await openBrowser(url);
+    }
     for (let i = 0; i < 150 && !prof?.company; i++) {
       await new Promise((r) => setTimeout(r, 2000));
       const p = await get(`/api/profile?device=${cfg.deviceId ?? ""}`);
@@ -145,7 +151,7 @@ async function browserLogin() {
     console.error("无法发起登录(网络不可达)");
     process.exit(1);
   }
-  const url = `${apiBase()}/login?device=${start.code}`;
+  const url = `${apiBase()}/login?device=${start.code}&from=cli`;
   console.log(`在浏览器里完成登录…\n打不开就手动访问:${url}`);
   await openBrowser(url);
   for (let i = 0; i < 150; i++) {
@@ -155,7 +161,7 @@ async function browserLogin() {
       saveConfig({ email: poll.email, accessToken: poll.access_token, refreshToken: poll.refresh_token });
       await post("/api/auth/merge", { deviceId: cfg.deviceId }); // 设备历史并入账号
       console.log(`✅ 已登录 ${poll.email}`);
-      return;
+      return true; // 浏览器登录刚发生:登录页会自己跳到绑定页,init 不必再开新标签
     }
     if (poll?.expired) {
       console.error("登录超时,再跑一次 npx agentosity login");
