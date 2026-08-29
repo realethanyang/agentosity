@@ -102,6 +102,10 @@ async function init(companyArg) {
   const results = installAllHarnesses();
   console.log(formatInstallResults(results) || "  (未发现已安装的 harness)");
 
+  // 4. mac:顺手装菜单栏 App(登录态与 CLI 共用 ~/.agentosity/config.json,装好即已登录;
+  //    自带进程雷达,正在跑的 Agent 免重启当场收编)。跳过:--no-app
+  if (!process.argv.includes("--no-app")) await installMenubarApp();
+
   console.log(`
 ✅ 完成。从现在起,新开的 Agent 会话会自动考勤——模型零参与,只上报时长,不读任何内容。
 ⚠️ 桌面 App(Codex App / Cursor / Windsurf 等)要完全退出重开一次才会加载配置。
@@ -131,6 +135,35 @@ async function login(email, code) {
     console.error(`登录失败:${r?.error ?? "验证码不对或已过期"}`);
     process.exit(1);
   }
+}
+
+async function installMenubarApp() {
+  if (process.platform !== "darwin") return;
+  const { spawnSync } = await import("node:child_process");
+  const { tmpdir } = await import("node:os");
+  const { existsSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const sh = (cmd, args) => spawnSync(cmd, args, { encoding: "utf8" });
+  const fallback = "   手动安装:https://agentosity.com/start(不影响命令行考勤,已经在工作了)";
+
+  if (existsSync("/Applications/Agentosity.app")) {
+    sh("open", ["-g", "-a", "Agentosity"]);
+    console.log("\n✓ 菜单栏 App 已安装并带起(登录状态与命令行共享)");
+    return;
+  }
+  console.log("\n⬇️  安装菜单栏 App(实时看板 + 进程雷达,正在跑的 Agent 免重启收编)…");
+  const dmg = join(tmpdir(), `Agentosity-${Date.now()}.dmg`);
+  const dl = sh("curl", ["-fsSL", "-o", dmg,
+    "https://github.com/realethanyang/agentosity/releases/latest/download/Agentosity.dmg"]);
+  if (dl.status !== 0) return console.log("   下载失败,跳过。\n" + fallback);
+  const att = sh("hdiutil", ["attach", "-nobrowse", "-readonly", dmg]);
+  const mount = (att.stdout.match(/\/Volumes\/[^\n]+/) || [])[0]?.trim();
+  if (!mount) return console.log("   镜像挂载失败,跳过。\n" + fallback);
+  const cp = sh("ditto", [`${mount}/Agentosity.app`, "/Applications/Agentosity.app"]);
+  sh("hdiutil", ["detach", "-quiet", mount]);
+  if (cp.status !== 0) return console.log("   拷贝失败(/Applications 无写权限?),跳过。\n" + fallback);
+  sh("open", ["-g", "-a", "Agentosity"]);
+  console.log("✅ 菜单栏 App 已装进 /Applications 并启动,登录状态自动同步(首次打开若系统弹确认,点「打开」)");
 }
 
 async function openBrowser(url) {
