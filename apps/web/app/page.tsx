@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { fmtMinutes, shanghaiNow } from "@/lib/time";
 import { deviceId } from "@/lib/device";
@@ -40,6 +40,41 @@ type MyCompany = {
   };
 };
 
+/**
+ * 监控大屏式数字:30s 轮询之间按「working 个 Agent 每秒累积 working/3600 小时」持续爬升,
+ * 新数据到达时平滑滚动校正 —— 动态感是真的(在干活的 Agent 确实在实时累积工时)。
+ */
+function useTickerHours(target: number | null | undefined, workingNow: number): number | null {
+  const [disp, setDisp] = useState<number | null>(null);
+  const dispRef = useRef<number | null>(null);
+  const targetRef = useRef(0);
+  const rateRef = useRef(0);
+
+  useEffect(() => {
+    if (target == null) return;
+    targetRef.current = target;
+    if (dispRef.current == null) {
+      dispRef.current = target;
+      setDisp(target);
+    }
+  }, [target]);
+  useEffect(() => {
+    rateRef.current = workingNow / 3600; // 小时/秒
+  }, [workingNow]);
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (dispRef.current == null) return;
+      targetRef.current += rateRef.current * 0.25;
+      let d = dispRef.current + (targetRef.current - dispRef.current) * 0.08;
+      if (Math.abs(targetRef.current - d) < 0.0005) d = targetRef.current;
+      dispRef.current = d;
+      setDisp(d);
+    }, 250);
+    return () => clearInterval(iv);
+  }, []);
+  return disp;
+}
+
 export default function Home() {
   const [live, setLive] = useState<Live | null>(null);
   const [board, setBoard] = useState<AgentBoardRow[] | null>(null);
@@ -48,6 +83,7 @@ export default function Home() {
   const [punchDone, setPunchDone] = useState<{ time: string; rankGlobal: number | null } | null>(null);
   const [punchErr, setPunchErr] = useState<string | null>(null);
   const [cmdCopied, setCmdCopied] = useState(false);
+  const tickerHours = useTickerHours(live?.today_active_hours, live?.working ?? 0);
   const [pulse, setPulse] = useState<Pulse | null>(null);
   const [my, setMy] = useState<MyAgents | null>(null);
   const [myToday, setMyToday] = useState<MyToday | null>(null);
@@ -109,9 +145,16 @@ export default function Home() {
               style={{ boxShadow: "3px 3px 0 0 rgba(17,17,17,0.35)" }}>Prove it!</span>
           </div>
         </div>
-        {/* 主视觉:我们定义的单位 agent-hours */}
+        {/* 主视觉:我们定义的单位 agent-hours(监控大屏式实时爬升) */}
         <h1 className="mt-2 font-black leading-none tabular-nums">
-          <span className="text-6xl sm:text-7xl">{live?.today_active_hours ?? "—"}</span>
+          <span className="text-6xl sm:text-7xl">
+            {tickerHours != null ? (
+              <>
+                {tickerHours.toFixed(2).slice(0, -1)}
+                <span className="text-4xl opacity-60 sm:text-5xl">{tickerHours.toFixed(2).slice(-1)}</span>
+              </>
+            ) : "—"}
+          </span>
           <span className="ml-2 inline-block -translate-y-1 border-3 bg-[var(--nb-yellow)] px-2 py-0.5 text-xl font-black"
             style={{ border: "3px solid var(--nb-ink)", boxShadow: "3px 3px 0 0 var(--nb-ink)" }}>
             agent-hours
