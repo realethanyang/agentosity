@@ -47,6 +47,7 @@ export default function Home() {
   const [punchBusy, setPunchBusy] = useState(false);
   const [punchDone, setPunchDone] = useState<{ time: string; rankGlobal: number | null } | null>(null);
   const [punchErr, setPunchErr] = useState<string | null>(null);
+  const [cmdCopied, setCmdCopied] = useState(false);
   const [pulse, setPulse] = useState<Pulse | null>(null);
   const [my, setMy] = useState<MyAgents | null>(null);
   const [myToday, setMyToday] = useState<MyToday | null>(null);
@@ -281,14 +282,30 @@ export default function Home() {
         )}
       </section>
 
-      {/* 接入 CTA */}
-      <section className="mt-8 text-center">
-        <Link href="/start" className="nb-btn inline-block bg-[var(--nb-ink)] px-8 py-4 text-xl font-black text-white">
-          接入你的 Agent 考勤 →
-        </Link>
-        <p className="mt-2 text-xs font-bold opacity-50">
-          mac 一个 App / 其他平台一条命令 · 只报时长,不读内容,开源可审计
+      {/* 接入 CTA:命令就是 CTA,别让人多点三层 */}
+      <section className="nb-card mt-8 bg-[var(--nb-ink)] p-5 text-white">
+        <div className="text-lg font-black">⏱ 30 秒,让你的 Agent 也被考勤</div>
+        <div className="mt-3 flex items-stretch gap-2">
+          <code className="flex-1 overflow-x-auto whitespace-nowrap bg-white/10 px-4 py-3 font-mono text-lg font-bold">
+            npx agentosity init
+          </code>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText("npx agentosity init");
+              setCmdCopied(true);
+              setTimeout(() => setCmdCopied(false), 1500);
+            }}
+            className="nb-btn shrink-0 border-white bg-[var(--nb-yellow)] px-4 font-black text-[var(--nb-ink)]"
+          >
+            {cmdCopied ? "✅ 已复制" : "复制"}
+          </button>
+        </div>
+        <p className="mt-2 text-xs font-bold opacity-70">
+          登录 → 选公司 → 全家 harness 自动接入,mac 还会顺手装好菜单栏 App · 只报时长,不读内容,开源可审计
         </p>
+        <Link href="/start" className="mt-1 inline-block text-xs font-bold underline opacity-70">
+          详细说明 / 直接下载 mac App →
+        </Link>
       </section>
     </main>
   );
