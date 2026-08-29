@@ -80,6 +80,9 @@ export default function StartPage() {
         <p className="mt-2 text-xs font-bold opacity-60">
           活跃度探针(区分 ⚡干活 / 😴挂机)精确支持前 11 家,Cursor / Windsurf 等按在岗时长计。
         </p>
+        <p className="mt-1 text-xs font-black">
+          ⚠️ 接入后,桌面 App(Codex App / Cursor / Windsurf)要完全退出重开一次;命令行 harness 新开会话即生效。
+        </p>
       </section>
 
       {/* 隐私承诺 */}

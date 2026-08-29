@@ -104,6 +104,7 @@ async function init(companyArg) {
 
   console.log(`
 ✅ 完成。从现在起,新开的 Agent 会话会自动考勤——模型零参与,只上报时长,不读任何内容。
+⚠️ 桌面 App(Codex App / Cursor / Windsurf 等)要完全退出重开一次才会加载配置。
 已开着的老会话不会被追踪(配置只对新会话生效),要收编它们:npx agentosity radar
 
 看榜:${apiBase()}/agents`);
