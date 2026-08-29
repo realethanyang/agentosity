@@ -68,6 +68,8 @@ export default function MePage() {
     }, 250);
   }, [q]);
 
+  const [justBound, setJustBound] = useState(false);
+
   async function bindCompany(c: Company) {
     setError(null);
     const headers = await freshAuthHeaders();
@@ -81,6 +83,7 @@ export default function MePage() {
       setQ("");
       setResults([]);
       setPicking(false);
+      setJustBound(true); // 绑定完成 → 引导去仪表盘/榜单,别让用户愣在数字堆里
       load();
     } else setError(d.error ?? "绑定失败");
   }
@@ -195,15 +198,21 @@ export default function MePage() {
         )}
       </section>
 
-      {/* 我的 Agent 战报 */}
+      {/* 我的 Agent 战报:每屏一个主数字,其余降级 */}
       <section className="nb-card mt-4 bg-[var(--nb-yellow)] p-5">
-        <div className="text-xs font-black opacity-60">我的 Agent 今日战报</div>
         {myAgents && myAgents.sessions > 0 ? (
-          <p className="mt-1 font-bold tabular-nums">
-            ⚡ 干活 <span className="text-2xl font-black">{myAgents.active_hours}h</span> · 会话 {myAgents.sessions} 个 · 在岗 {myAgents.session_hours}h · 此刻 {myAgents.live_now} 个在跑
-          </p>
+          <>
+            <p className="text-sm font-bold">你的 Agent 今天替你干了</p>
+            <p className="mt-1 tabular-nums">
+              <span className="text-4xl font-black">{myAgents.active_hours}</span>
+              <span className="ml-1 text-lg font-black">小时</span>
+              {myAgents.live_now > 0 && (
+                <span className="ml-3 text-sm font-bold opacity-60">此刻 {myAgents.live_now} 个还在跑</span>
+              )}
+            </p>
+          </>
         ) : (
-          <p className="mt-1 text-sm font-bold opacity-70">
+          <p className="text-sm font-bold opacity-70">
             还没有 Agent 数据 —— <Link href="/start" className="underline">接入考勤 →</Link>
           </p>
         )}
@@ -244,6 +253,18 @@ export default function MePage() {
           </div>
         )}
       </section>
+
+      {/* 绑定完成:接住用户 */}
+      {justBound && company && !picking && (
+        <div className="nb-card mt-3 bg-[var(--nb-green)] p-4">
+          <p className="font-black">✅ 已加入「{company.name}」</p>
+          <p className="mt-1 text-sm font-bold">下班时回来点上面的大按钮打卡。现在先去转转:</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link href="/" className="nb-btn bg-[var(--nb-yellow)] px-4 py-2 text-sm font-black">📟 实时仪表盘</Link>
+            <Link href="/leaderboard" className="nb-btn bg-white px-4 py-2 text-sm font-black">🏆 排行榜</Link>
+          </div>
+        </div>
+      )}
 
       {/* 账号 */}
       <section className="mt-4 flex items-center justify-between text-xs font-bold opacity-60">

@@ -75,7 +75,7 @@ async function init(companyArg) {
     prof = await get(`/api/profile?device=${cfg.deviceId ?? ""}`);
   }
   if (!prof?.company) {
-    const url = `${apiBase()}/checkin`;
+    const url = `${apiBase()}/checkin?from=cli`;
     console.log(`在网页上选择你的公司…\n打不开就手动访问:${url}`);
     await openBrowser(url);
     for (let i = 0; i < 150 && !prof?.company; i++) {

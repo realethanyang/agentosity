@@ -86,6 +86,9 @@ export default function CheckinPage() {
     else setError(d.error ?? "创建失败");
   }
 
+  const [justBound, setJustBound] = useState(false);
+  const fromCli = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("from") === "cli";
+
   /** 绑定/改绑公司(服务端唯一真相,改绑每周一次) */
   async function pick(c: Company) {
     setError(null);
@@ -100,6 +103,7 @@ export default function CheckinPage() {
       setQ("");
       setResults([]);
       setPicking(false);
+      setJustBound(true); // 绑定完成 → 给引导,别让用户愣在原地
       await loadProfile();
     } else {
       setError(d.error ?? "绑定失败");
@@ -175,7 +179,7 @@ export default function CheckinPage() {
             免密码,邮箱验证码 30 秒搞定。你的打卡和 Agent 数据会跟着账号走,换设备不丢。
           </p>
           <Link
-            href="/login?next=/checkin"
+            href={`/login?next=${encodeURIComponent(fromCli ? "/checkin?from=cli" : "/checkin")}`}
             className="nb-btn mt-4 inline-block bg-[var(--nb-pink)] px-8 py-3 font-black text-white"
           >
             登录 →
@@ -256,6 +260,28 @@ export default function CheckinPage() {
           </div>
         )}
       </section>
+
+      {/* 绑定完成:接住用户,告诉他下一步去哪 */}
+      {justBound && company && !picking && (
+        <div className="nb-card mt-3 bg-[var(--nb-green)] p-4">
+          <p className="font-black">✅ 已加入「{company.name}」</p>
+          {fromCli ? (
+            <p className="mt-1 text-sm font-bold">
+              回到终端,剩下的安装会自动完成。装好后你的 Agent 干活时长会实时出现在这里:
+            </p>
+          ) : (
+            <p className="mt-1 text-sm font-bold">下班时回来点下面的大按钮。现在先去转转:</p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link href="/" className="nb-btn bg-[var(--nb-yellow)] px-4 py-2 text-sm font-black">
+              📟 实时仪表盘
+            </Link>
+            <Link href="/leaderboard" className="nb-btn bg-white px-4 py-2 text-sm font-black">
+              🏆 排行榜
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* 大按钮 */}
       <section className="mt-8 text-center">

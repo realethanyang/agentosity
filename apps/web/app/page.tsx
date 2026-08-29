@@ -21,11 +21,7 @@ type AgentRow = {
   working_now: number;
 };
 
-function agentosityScore(leverage: number | null): number | null {
-  if (leverage == null || leverage <= 0) return null;
-  return Math.round((100 * leverage) / (leverage + 1));
-}
-type Top3 = { rank: number; name: string; avg_minutes: number; count: number };
+type Top3 ={ rank: number; name: string; avg_minutes: number; count: number };
 type Pulse = {
   checked_out: number;
   still_working: number;
@@ -96,7 +92,6 @@ export default function Home() {
         <p className="mt-1 text-sm font-bold opacity-60">今日全网 Agent 已干活的总时长</p>
         <p className="mt-3 text-lg font-black tabular-nums">
           ⚡ {live?.working ?? "—"}<span className="opacity-50">/{live?.total ?? "—"}</span> 个在岗 Agent 正在干活
-          <span className="ml-2 text-sm font-bold opacity-50">(其余 {live?.idle ?? "—"} 个挂机中)</span>
         </p>
 
         {/* 灵魂对照条 */}
@@ -205,15 +200,11 @@ export default function Home() {
               {board.slice(0, 5).map((r, i) => (
                 <tr key={r.name} className="border-b border-dashed border-black/15">
                   <td className="py-1.5 font-black">{i + 1}</td>
-                  <td>{r.name}</td>
+                  <td>
+                    {r.name}
+                    {r.working_now > 0 && <span className="ml-1" title={`此刻 ${r.working_now} 个 Agent 在干活`}>⚡</span>}
+                  </td>
                   <td className="text-right tabular-nums font-black">{r.active_hours} h</td>
-                  <td className="text-right text-xs tabular-nums opacity-60"
-                    title="Agentosity 指数:50 分 = AI 干的活与人类打平">
-                    {agentosityScore(r.leverage) != null ? `指数 ${agentosityScore(r.leverage)}` : ""}
-                  </td>
-                  <td className="w-14 text-right text-xs tabular-nums">
-                    {r.live_now > 0 ? `⚡${r.working_now}/${r.live_now}` : ""}
-                  </td>
                 </tr>
               ))}
             </tbody>
