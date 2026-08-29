@@ -157,16 +157,7 @@ export default function LoginPage() {
       <div className="nb-card mt-6 bg-white p-5">
         {stage === "email" ? (
           <>
-            <button
-              onClick={googleLogin}
-              className="nb-btn flex w-full items-center justify-center gap-2 bg-white py-3 font-black"
-            >
-              <span className="text-lg">G</span> 用 Google 登录
-            </button>
-            <div className="my-4 flex items-center gap-3 text-xs font-bold opacity-40">
-              <div className="h-0.5 flex-1 bg-black/20" />或用邮箱验证码<div className="h-0.5 flex-1 bg-black/20" />
-            </div>
-            <label className="text-sm font-extrabold">邮箱</label>
+            <label className="text-sm font-extrabold">邮箱(收 6 位验证码,最快 30 秒)</label>
             <input
               type="email"
               value={email}
@@ -178,10 +169,22 @@ export default function LoginPage() {
             <button
               disabled={busy || !email.includes("@")}
               onClick={sendCode}
-              className="nb-btn mt-4 w-full bg-[var(--nb-blue)] py-3 font-black text-white disabled:opacity-40"
+              className="nb-btn mt-4 w-full bg-[var(--nb-pink)] py-3 font-black text-white disabled:opacity-40"
             >
-              {busy ? "发送中…" : "发验证码"}
+              {busy ? "发送中…" : "发验证码 →"}
             </button>
+            <div className="my-4 flex items-center gap-3 text-xs font-bold opacity-40">
+              <div className="h-0.5 flex-1 bg-black/20" />或<div className="h-0.5 flex-1 bg-black/20" />
+            </div>
+            <button
+              onClick={googleLogin}
+              className="nb-btn flex w-full items-center justify-center gap-2 bg-white py-2.5 text-sm font-black"
+            >
+              <span>G</span> 用 Google 登录
+            </button>
+            <p className="mt-1 text-center text-[10px] font-bold opacity-40">
+              国内网络 / 现场 Wi-Fi 下 Google 可能打不开,推荐邮箱验证码
+            </p>
           </>
         ) : (
           <>
