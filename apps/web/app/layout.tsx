@@ -44,10 +44,10 @@ export default function RootLayout({
             </a>{" "}
             · <a href="/community" className="underline">用户群 💬</a>
           </p>
-          <p className="mt-2 opacity-80">
+          <p className="mt-2 text-sm font-black">
             友情链接:{" "}
-            <a href="https://loophouse.app" target="_blank" rel="noopener" className="underline">LoopHouse</a> ·{" "}
-            <a href="https://vibecafe.ai" target="_blank" rel="noopener" className="underline">VibeCafe</a>
+            <a href="https://loophouse.app" target="_blank" rel="noopener" className="underline">LoopHouse ↗</a> ·{" "}
+            <a href="https://vibecafe.ai" target="_blank" rel="noopener" className="underline">VibeCafe ↗</a>
           </p>
         </footer>
       </body>

@@ -368,6 +368,15 @@ export default function Home() {
           </Link>
         </p>
       )}
+
+      {/* 用户群:主页底部直接扫码,不用再点进去 */}
+      <section className="mt-10 flex flex-col items-center gap-2 text-center">
+        <Link href="/community" className="nb-card inline-block bg-white p-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/wechat-group-qr.jpg" alt="Agentosity 微信用户群二维码" className="w-32" />
+        </Link>
+        <p className="text-xs font-bold opacity-60">微信扫码进用户群 · 吐槽 / 报 bug / 新功能抢先看</p>
+      </section>
     </main>
   );
 }
