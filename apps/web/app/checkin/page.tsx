@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { deviceId } from "@/lib/device";
 import { freshAuthHeaders } from "@/lib/auth-client";
+import { shanghaiNow } from "@/lib/time";
 
 type Company = { id: string; name: string };
 type Profile = {
@@ -291,6 +292,9 @@ export default function CheckinPage() {
         <p className="mb-2 text-xs font-black opacity-60">
           🤖 Agent 考勤全自动,不用打卡 —— 这颗按钮是给你的:下班那一刻按一下
         </p>
+        {shanghaiNow().hour >= 5 && shanghaiNow().hour < 12 ? (
+          <p className="py-6 font-bold opacity-50">还早着呢 —— 中午 12:00 之后才能打下班卡,到点再来。</p>
+        ) : (
         <button
           disabled={!company || busy}
           onClick={() => punch()}
@@ -298,6 +302,7 @@ export default function CheckinPage() {
         >
           {busy ? "打卡中…" : today?.checked_in ? "更新为现在下班 🔁" : "我下班了 🎉"}
         </button>
+        )}
         <p className="mt-2 text-xs font-bold opacity-50">
           匿名 · 一天一次 · 重复打卡以最后一次为准
         </p>

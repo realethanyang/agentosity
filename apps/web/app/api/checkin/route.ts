@@ -22,6 +22,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "缺少 deviceId" }, { status: 400 });
   }
 
+  // 12:00 前打不了下班卡(与 checkins_valid 口径一致,别让用户打出一张"榜上看不见的隐形卡")
+  const punchHour = backfill?.time
+    ? parseInt(String(backfill.time).slice(0, 2), 10)
+    : shanghaiNow().hour;
+  if (punchHour >= 5 && punchHour < 12) {
+    return NextResponse.json(
+      { error: "中午 12:00 前打不了下班卡——这张卡记录的是你几点下班,到点再来 🏃" },
+      { status: 400 }
+    );
+  }
+
   // 公司以服务端绑定(profile)为唯一真相;无绑定时用请求里的 companyId 完成首绑
   const { data: prof } = await db()
     .from("profiles")

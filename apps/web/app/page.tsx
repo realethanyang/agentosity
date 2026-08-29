@@ -13,6 +13,7 @@ type Live = {
   today_active_hours?: number;
 };
 import AgentBoardTable, { AgentBoardRow } from "@/components/AgentBoardTable";
+import ShareCardButton from "@/components/ShareCard";
 
 type Top3 = { rank: number; name: string; avg_minutes: number; count: number };
 type HumanBoard = {
@@ -143,6 +144,9 @@ export default function Home() {
             <div className="mt-1 text-xs font-bold opacity-70">
               今天干的活 · 此刻 {my?.live_now ?? 0} 个在跑
             </div>
+            {my && my.sessions > 0 && (
+              <ShareCardButton hours={my.active_hours} liveNow={my.live_now} />
+            )}
             <div className="mt-3 border-t-2 border-dashed border-black/30 pt-2 text-sm font-bold">
               {myToday?.checked_in ? (
                 <>✅ 我 {myToday.clocked_local} 已下班,Agent 还在干</>
