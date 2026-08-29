@@ -29,7 +29,13 @@ PLIST
 # 有 Developer ID 证书就正式签名(硬化运行时 + 时间戳,公证的前提),否则 ad-hoc
 DEV_ID="Developer ID Application: Ethan Yang (UTR5A48B54)"
 if security find-identity -p codesigning -v 2>/dev/null | grep -q "$DEV_ID"; then
-  codesign --force --options runtime --timestamp --sign "$DEV_ID" "$APP"
+  # Apple 时间戳服务偶发不可用:重试,绝不落一个未签名产物
+  ok=0
+  for i in 1 2 3 4 5; do
+    if codesign --force --options runtime --timestamp --sign "$DEV_ID" "$APP"; then ok=1; break; fi
+    echo "codesign attempt $i failed (timestamp service?), retrying…"; sleep 15
+  done
+  [ "$ok" = "1" ] || { echo "❌ signing failed after retries"; exit 1; }
   echo "signed: Developer ID"
   # --notarize:上传 Apple 公证 + 钉票(凭证在钥匙串 profile agentosity-notary)
   if [ "${1:-}" = "--notarize" ]; then
