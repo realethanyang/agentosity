@@ -33,7 +33,7 @@ export default function LeaderboardPage() {
   const [tab, setTab] = useState<"agent" | "human">("agent");
   const [agentBoard, setAgentBoard] = useState<AgentRow[] | null>(null);
   const [period, setPeriod] = useState<{ from: string; to: string; days: number } | null>(null);
-  const [days, setDays] = useState<7 | 30>(7);
+  const [days, setDays] = useState<1 | 7 | 30>(1);
   const [mode, setMode] = useState<"sum" | "avg">("sum");
   const [sortBy, setSortBy] = useState<"hours" | "score">("hours");
   const [humanBoard, setHumanBoard] = useState<Board | null>(null);
@@ -105,11 +105,12 @@ export default function LeaderboardPage() {
           {/* 口径切换 */}
           <div className="mt-2 flex flex-wrap gap-1 text-xs font-extrabold">
             {([
+              { d: 1, m: "sum", label: "今天" },
               { d: 7, m: "sum", label: "近 7 天累计" },
               { d: 30, m: "sum", label: "近 30 天累计" },
               { d: 7, m: "avg", label: "近 7 天日均" },
               { d: 30, m: "avg", label: "近 30 天日均" },
-            ] as { d: 7 | 30; m: "sum" | "avg"; label: string }[]).map((o) => (
+            ] as { d: 1 | 7 | 30; m: "sum" | "avg"; label: string }[]).map((o) => (
               <button key={o.label}
                 onClick={() => { setDays(o.d); setMode(o.m); }}
                 className={`nb-btn px-2 py-0.5 ${days === o.d && mode === o.m ? "bg-[var(--nb-yellow)]" : "bg-white"}`}>
@@ -126,7 +127,7 @@ export default function LeaderboardPage() {
                   <th className="py-2">#</th>
                   <th>公司</th>
                   <th className="text-right" title="该公司全部 Agent 真实干活的时长(探针过滤,不含挂机)">
-                    agent-hours{mode === "avg" ? "(日均)" : `(${days}天)`}
+                    agent-hours{mode === "avg" ? "(日均)" : days === 1 ? "(今日)" : `(${days}天)`}
                   </th>
                   <th className="text-right" title="Daily Active Agents:今天真实干过活的 Agent 会话数">
                     DAA(今日)

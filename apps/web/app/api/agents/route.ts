@@ -4,10 +4,10 @@ import { todayKey } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
-/** Agentosity 公司榜(实时口径:含今天;days=7|30)+ 在岗实况 */
+/** Agentosity 公司榜(实时口径:含今天;days=1|7|30)+ 在岗实况 */
 export async function GET(req: NextRequest) {
   const daysParam = new URL(req.url).searchParams.get("days");
-  const days = daysParam === "30" ? 30 : 7;
+  const days = daysParam === "30" ? 30 : daysParam === "1" ? 1 : 7;
   const to = todayKey();
   const from = new Date(`${to}T12:00:00Z`);
   from.setUTCDate(from.getUTCDate() - (days - 1));
