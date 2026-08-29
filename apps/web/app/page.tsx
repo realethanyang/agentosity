@@ -255,8 +255,11 @@ export default function Home() {
         </section>
       ) : (
         <section className="nb-card mt-6 bg-white p-4">
+          <p className="mb-3 text-base font-black">
+            Agentosity 给你的 AI Agent 打考勤:它们实打实替你干了多少活,一个数字见分晓 —— 公司榜、个人榜,实时开赛。
+          </p>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm font-black">⏱ 30 秒接入你的 Agent 考勤:</span>
+            <span className="text-sm font-black">⏱ 30 秒接入:</span>
             <code className="flex-1 overflow-x-auto whitespace-nowrap bg-[var(--nb-ink)] px-3 py-2 font-mono font-bold text-[var(--nb-yellow)]"
               style={{ minWidth: 220 }}>
               npx agentosity init
