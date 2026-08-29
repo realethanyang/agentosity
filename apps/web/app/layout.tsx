@@ -3,9 +3,23 @@ import Nav from "@/components/Nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Agentosity — AI-native is a number now.",
+  metadataBase: new URL("https://agentosity.com"),
+  title: {
+    default: "Agentosity — AI 时代的考勤系统 · Agent 工时统计与排行榜",
+    template: "%s · Agentosity",
+  },
   description:
-    "AI 时代的考勤系统:自动测量你和你公司的 Agent 工时,让「AI 替人扛了多少活」成为可测量、可比较、可炫耀的数字。你的下班时间,是它最有人味的注脚。",
+    "Agentosity 是 AI 时代的考勤系统:一条命令自动统计 Claude Code、Codex、OpenCode 等 Agent 的真实工时(挂机不算),公司榜/个人榜/早下班榜实时排名。AI-native? Prove it!",
+  keywords: ["Agentosity", "Agent 工时", "AI 考勤", "agent-hours", "Claude Code", "Codex", "AI-native", "早点下班"],
+  alternates: { canonical: "https://agentosity.com" },
+  openGraph: {
+    title: "Agentosity — AI 时代的考勤系统",
+    description: "自动统计你的 Agent 真实工时,公司榜/个人榜实时排名。Humans clock out. Agents clock in.",
+    url: "https://agentosity.com",
+    siteName: "Agentosity",
+    locale: "zh_CN",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -27,7 +41,8 @@ export default function RootLayout({
               className="underline"
             >
               GitHub 开源 ↗
-            </a>
+            </a>{" "}
+            · <a href="/community" className="underline">用户群 💬</a>
           </p>
           <p className="mt-2 opacity-80">
             友情链接:{" "}
