@@ -98,7 +98,7 @@ func jwtExpMs(_ token: String) -> Double {
     return exp * 1000
 }
 
-let APP_VERSION = "0.3.4"
+let APP_VERSION = "0.3.5"
 
 // MARK: - 品牌色
 
@@ -248,14 +248,18 @@ final class Store: ObservableObject {
             config = loadRawConfig()
             return
         }
-        patchConfig(["accessToken": nil]) // 请求续期时不带过期 token
-        config = loadRawConfig()
+        // 注意:不能在续期期间清掉共享配置里的 accessToken——CLI 的考勤进程共用这份文件,
+        // 清了它们就变成匿名请求,会话会被记到裸设备身份上(成员数虚增 bug 的元凶之一)
         guard let d = try? await request("/api/auth/refresh", method: "POST", json: ["refresh_token": rt]),
               let r = try? JSONDecoder().decode(RefreshResult.self, from: d), r.ok == true,
               let at = r.access_token
         else {
             // 续期失败:退回未登录态
-            patchConfig(["email": nil, "accessToken": nil, "refreshToken": nil])
+            // 轮换撞车保护:兄弟进程(CLI serve)可能已刷新成功,磁盘上是新凭证时不清
+            let onDisk = loadRawConfig()["refreshToken"] as? String
+            if onDisk == rt {
+                patchConfig(["email": nil, "accessToken": nil, "refreshToken": nil])
+            }
             config = loadRawConfig()
             return
         }

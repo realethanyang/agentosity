@@ -31,7 +31,13 @@ async function ensureFresh() {
       if (d?.ok) {
         saveConfig({ accessToken: d.access_token, refreshToken: d.refresh_token ?? cfg.refreshToken });
       } else {
-        saveConfig({ accessToken: undefined, refreshToken: undefined, email: undefined });
+        // 刷新失败 ≠ 登录态失效:多个考勤进程共用一份凭证,轮换会撞车。
+        // 先重读磁盘——兄弟进程可能已刷新成功;只有磁盘上还是这枚死 token 才清,
+        // 否则会把别人刚写入的好凭证一起抹掉,后续请求全部降级成匿名设备身份。
+        const now = loadConfig();
+        if (now.refreshToken === cfg.refreshToken) {
+          saveConfig({ accessToken: undefined, refreshToken: undefined, email: undefined });
+        }
       }
     } catch {
       /* 网络失败:保留现状,下次再试 */
