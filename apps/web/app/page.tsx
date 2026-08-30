@@ -171,31 +171,24 @@ export default function Home() {
           ⚡ {live?.working ?? "—"}<span className="opacity-50">/{live?.total ?? "—"}</span> 个在岗 Agent 正在干活
         </p>
 
-        {/* 全站增长曲线:昨天的数字不消失,累计只涨不跌 */}
+        {/* 增长感:一行字 + 微型火花线,不占版面(完整逐日图在榜单页) */}
         {trend && trend.trend.length > 1 && (
-          <div className="nb-card mt-4 bg-white p-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="text-xs font-black opacity-60">全站 agent-hours · 逐日</span>
-              <span className="font-black tabular-nums">
-                历史累计 <span className="text-xl">{trend.total_hours}</span> h
-              </span>
-            </div>
-            <div className="mt-2 flex items-end gap-1" style={{ height: 56 }}>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm font-bold opacity-70 tabular-nums">
+            <span>
+              昨日全站 {trend.trend[trend.trend.length - 2]?.hours}h · 历史累计{" "}
+              <span className="font-black">{trend.total_hours}h</span>
+            </span>
+            <Link href="/leaderboard" title="看逐日趋势" className="inline-flex items-end gap-[2px]" style={{ height: 14 }}>
               {trend.trend.map((d, i) => {
                 const max = Math.max(...trend.trend.map((x) => x.hours), 1);
                 const last = i === trend.trend.length - 1;
                 return (
-                  <div key={d.day} title={`${d.day} · ${d.hours}h`}
-                    className={last ? "flex-1 bg-[var(--nb-yellow)]" : "flex-1 bg-[var(--nb-ink)]"}
-                    style={{ height: `${Math.max(8, (d.hours / max) * 100)}%`, border: last ? "2px solid var(--nb-ink)" : undefined }} />
+                  <span key={d.day} className={last ? "bg-[var(--nb-yellow)]" : "bg-[var(--nb-ink)]"}
+                    style={{ width: 4, height: `${Math.max(15, (d.hours / max) * 100)}%`, outline: last ? "1px solid var(--nb-ink)" : undefined }} />
                 );
               })}
-            </div>
-            <div className="mt-1 flex justify-between text-[10px] font-bold opacity-50">
-              <span>{trend.trend[0].day.slice(5)}</span>
-              <span>今天(黄色,还在涨)</span>
-            </div>
-          </div>
+            </Link>
+          </p>
         )}
 
         {/* 灵魂对照条 */}

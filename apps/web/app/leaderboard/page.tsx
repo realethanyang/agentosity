@@ -27,6 +27,10 @@ type PersonalRow = {
 export default function LeaderboardPage() {
   const [tab, setTab] = useState<"agent" | "human" | "personal">("agent");
   const [pBoard, setPBoard] = useState<PersonalRow[] | null>(null);
+  const [trend, setTrend] = useState<{ trend: { day: string; hours: number }[]; total_hours: number } | null>(null);
+  useEffect(() => {
+    fetch("/api/trend").then((r) => r.json()).then(setTrend).catch(() => {});
+  }, []);
   const [pDays, setPDays] = useState<1 | 7 | 30>(1);
   const [agentBoard, setAgentBoard] = useState<AgentBoardRow[] | null>(null);
   const [period, setPeriod] = useState<{ from: string; to: string; days: number } | null>(null);
@@ -210,6 +214,31 @@ export default function LeaderboardPage() {
             agent-hours = 探针测出的真实干活时长(挂机不算)· Agentosity 指数过 50 = AI 干的活比人多 ·
             没有指数?拉同事打卡就有了 · 悬停列头看定义
           </p>
+
+          {/* 全站逐日趋势 + 历史累计 */}
+          {trend && trend.trend.length > 1 && (
+            <div className="mt-4 border-t-2 border-dashed border-black/20 pt-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-xs font-black opacity-60">全站 agent-hours · 逐日</span>
+                <span className="font-black tabular-nums">历史累计 <span className="text-xl">{trend.total_hours}</span> h</span>
+              </div>
+              <div className="mt-2 flex items-end gap-1" style={{ height: 56 }}>
+                {trend.trend.map((d, i) => {
+                  const max = Math.max(...trend.trend.map((x) => x.hours), 1);
+                  const last = i === trend.trend.length - 1;
+                  return (
+                    <div key={d.day} title={`${d.day} · ${d.hours}h`}
+                      className={last ? "flex-1 bg-[var(--nb-yellow)]" : "flex-1 bg-[var(--nb-ink)]"}
+                      style={{ height: `${Math.max(8, (d.hours / max) * 100)}%`, border: last ? "2px solid var(--nb-ink)" : undefined }} />
+                  );
+                })}
+              </div>
+              <div className="mt-1 flex justify-between text-[10px] font-bold opacity-50">
+                <span>{trend.trend[0].day.slice(5)}</span>
+                <span>今天(黄色,还在涨)</span>
+              </div>
+            </div>
+          )}
         </section>
       ) : (
         <>
