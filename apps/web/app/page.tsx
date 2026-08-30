@@ -16,6 +16,7 @@ import AgentBoardTable, { AgentBoardRow } from "@/components/AgentBoardTable";
 import ShareCardButton from "@/components/ShareCard";
 
 type Top3 = { rank: number; name: string; avg_minutes: number; count: number };
+type Trend = { trend: { day: string; hours: number }[]; total_hours: number };
 type HumanBoard = {
   day: string;
   top3: Top3[];
@@ -84,6 +85,7 @@ export default function Home() {
   const [punchErr, setPunchErr] = useState<string | null>(null);
   const [cmdCopied, setCmdCopied] = useState(false);
   const tickerHours = useTickerHours(live?.today_active_hours, live?.working ?? 0);
+  const [trend, setTrend] = useState<Trend | null>(null);
   const [pulse, setPulse] = useState<Pulse | null>(null);
   const [my, setMy] = useState<MyAgents | null>(null);
   const [myToday, setMyToday] = useState<MyToday | null>(null);
@@ -97,6 +99,7 @@ export default function Home() {
         setBoard(d.board);
       });
       fetch("/api/board").then((r) => r.json()).then(setHumanBoard);
+      fetch("/api/trend").then((r) => r.json()).then(setTrend).catch(() => {});
       fetch("/api/pulse").then((r) => r.json()).then(setPulse);
 
       const headers = await freshAuthHeaders();
@@ -167,6 +170,33 @@ export default function Home() {
         <p className="mt-3 text-lg font-black tabular-nums">
           ⚡ {live?.working ?? "—"}<span className="opacity-50">/{live?.total ?? "—"}</span> 个在岗 Agent 正在干活
         </p>
+
+        {/* 全站增长曲线:昨天的数字不消失,累计只涨不跌 */}
+        {trend && trend.trend.length > 1 && (
+          <div className="nb-card mt-4 bg-white p-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="text-xs font-black opacity-60">全站 agent-hours · 逐日</span>
+              <span className="font-black tabular-nums">
+                历史累计 <span className="text-xl">{trend.total_hours}</span> h
+              </span>
+            </div>
+            <div className="mt-2 flex items-end gap-1" style={{ height: 56 }}>
+              {trend.trend.map((d, i) => {
+                const max = Math.max(...trend.trend.map((x) => x.hours), 1);
+                const last = i === trend.trend.length - 1;
+                return (
+                  <div key={d.day} title={`${d.day} · ${d.hours}h`}
+                    className={last ? "flex-1 bg-[var(--nb-yellow)]" : "flex-1 bg-[var(--nb-ink)]"}
+                    style={{ height: `${Math.max(8, (d.hours / max) * 100)}%`, border: last ? "2px solid var(--nb-ink)" : undefined }} />
+                );
+              })}
+            </div>
+            <div className="mt-1 flex justify-between text-[10px] font-bold opacity-50">
+              <span>{trend.trend[0].day.slice(5)}</span>
+              <span>今天(黄色,还在涨)</span>
+            </div>
+          </div>
+        )}
 
         {/* 灵魂对照条 */}
         {pulse && (
