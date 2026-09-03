@@ -12,7 +12,7 @@ import { loadConfig } from "./config.js";
  * 前台常驻,Ctrl+C 优雅收尾。v1 支持 macOS / Linux。
  */
 
-const TICK_MS = 30_000;
+const TICK_MS = 180_000; // 降频省边缘请求额度;活跃判定窗口同步放宽
 const HARNESSES = [
   ["claude", "claude-code"],
   ["codex", "codex"],
@@ -179,6 +179,7 @@ export async function runRadar() {
   process.on("SIGTERM", stop);
 
   async function tick() {
+    const beats = [];
     const found = new Map();
     for (const [bin, harness] of HARNESSES) {
       for (const pid of pgrepExact(bin)) found.set(pid, harness);
@@ -230,13 +231,15 @@ export async function runRadar() {
       if (!active) {
         const a = sessionArtifact(t.harness, t.cwd);
         if (a && artifactCount.get(a) === 1 && existsSync(a)) {
-          if (Date.now() - newestMtimeMs(a, ARTIFACT_DEPTH[t.harness] ?? 1) < 90_000) active = true;
+          if (Date.now() - newestMtimeMs(a, ARTIFACT_DEPTH[t.harness] ?? 1) < TICK_MS) active = true;
         }
       }
       if (active) t.activeSeconds += TICK_MS / 1000;
-      await post("/api/agent/heartbeat", {
-        session_id: t.sessionId, active_seconds: Math.round(t.activeSeconds), probe: "radar", active,
-      });
+      beats.push({ session_id: t.sessionId, active_seconds: Math.round(t.activeSeconds), probe: "radar", active });
+    }
+    // 批量心跳:几百条会话一轮只发一个请求(边缘请求额度是稀缺资源)
+    for (let i = 0; i < beats.length; i += 400) {
+      await post("/api/agent/heartbeats", { beats: beats.slice(i, i + 400) });
     }
     process.stdout.write(`\r📡 在册 ${tracked.size} 个会话  `);
   }

@@ -43,11 +43,12 @@ final class RadarEngine {
     var deviceId: () -> String? = { nil }
     var accessToken: () -> String? = { nil }
 
-    private let tickSeconds = 30
+    private let tickSeconds = 180 // 降频省边缘请求;活跃累计与判定窗口随之
 
     // MARK: - 主循环
 
     func tick() async {
+        var beats: [[String: Any]] = []
         guard company() != nil else { return } // 没绑公司不补录
 
         var found: [Int32: String] = [:] // pid → harness
@@ -96,12 +97,16 @@ final class RadarEngine {
             if active { t.activeSeconds += tickSeconds }
             t.lastTickActive = active
             tracked[pid] = t
-            await post("/api/agent/heartbeat", [
+            beats.append([
                 "session_id": sid,
                 "active_seconds": t.activeSeconds,
                 "probe": "radar",
                 "active": active,
             ])
+        }
+        // 批量心跳:一轮一个请求,别烧边缘额度
+        if !beats.isEmpty {
+            await post("/api/agent/heartbeats", ["beats": beats])
         }
     }
 

@@ -98,7 +98,7 @@ func jwtExpMs(_ token: String) -> Double {
     return exp * 1000
 }
 
-let APP_VERSION = "0.3.5"
+let APP_VERSION = "0.3.6"
 
 // MARK: - 品牌色
 
@@ -186,18 +186,22 @@ final class Store: ObservableObject {
             await self?.checkUpdate()
             // 直接下载 App 的用户没有 CLI 写好的凭证:首启主动请登录,别蹲在看不见的菜单栏里干等
             if let self, self.accessToken == nil { await self.promptLoginOnce() }
+            var cycle = 0
             while true {
                 guard let self else { return }
                 await self.refresh()
-                // 统一登录:雷达只在登录后工作
+                // 统一登录:雷达只在登录后工作;每 3 轮(180s)扫一次,批量心跳
                 if self.radarEnabled && self.accessToken != nil {
-                    await self.radar.tick()
-                    self.radarCount = self.radar.adoptedCount
+                    if cycle % 3 == 0 {
+                        await self.radar.tick()
+                        self.radarCount = self.radar.adoptedCount
+                    }
                 } else if self.radarCount > 0 {
                     await self.radar.shutdown()
                     self.radarCount = 0
                 }
-                try? await Task.sleep(nanoseconds: 30_000_000_000)
+                cycle += 1
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
             }
         }
     }

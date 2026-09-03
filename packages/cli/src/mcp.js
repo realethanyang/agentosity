@@ -3,7 +3,7 @@ import { post, get } from "./api.js";
 import { detectHarness, createProbe } from "./probes.js";
 
 const TICK_MS = parseInt(process.env.AGENTOSITY_TICK_MS ?? "", 10) || 15_000; // 活跃度采样间隔
-const HEARTBEAT_MS = parseInt(process.env.AGENTOSITY_HB_MS ?? "", 10) || 60_000; // 上报间隔;服务端以最后心跳结算,误差 ≤1min
+const HEARTBEAT_MS = parseInt(process.env.AGENTOSITY_HB_MS ?? "", 10) || 150_000; // 上报间隔;服务端在线窗口 10min,误差可接受
 
 /**
  * stdio MCP 考勤服务:harness 拉起本进程即上班,杀掉即下班。
